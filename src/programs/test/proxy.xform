@@ -1,0 +1,107 @@
+;; Created by Peter K. Lee <saint@corenova.com>
+
+;;;;;;;;;;;;;;;;;;;;;;
+; network proxy server
+;;;;;;;;;;;;;;;;;;;;;;
+
+;; module loader (currently by explicit loading only)
+[transform:module -> transform:engine]
+module = corenova.data.processor.transformation ; for * -> transform:feeder
+
+[transform:module -> transform:engine]
+module = corenova.sys.nfqueue
+
+[transform:module -> transform:engine]
+module = corenova.net.server
+
+[transform:module -> transform:engine]
+module = corenova.net.filter
+
+[transform:module -> transform:engine]
+module = corenova.net.proxy
+
+[transform:module -> transform:engine]
+module = corenova.net.proxy.session
+
+[transform:module -> transform:engine]
+module = corenova.net.proxy.session.http
+
+
+;; register syn packet as part of original connection request
+[transform:feeder -> sys:nfqueue -> sys:nfqueue:packet -> (nfqueue_packet)]
+nfqueue_num = 1
+nfqueue_size = 256
+nfqueue_mode = meta ; get the entire packet (none, meta, or full)
+
+;;; return the feeder to get additional connections
+[(nfqueue_packet) -> transform:feeder]
+
+;;; filter the retrieved nfqueue:packet and set verdict
+[(nfqueue_packet) -> sys:nfqueue:filter -> (nfqueue_packet_filter)]
+
+;;; push verdict back into the queue
+[(nfqueue_packet_filter) -> sys:nfqueue]
+
+[(nfqueue_packet_filter) -> net:proxy:registration]
+
+;; register new connection requests from a generic network server
+;;[transform:feeder -> net:server -> net:transport -> (connection)]
+;;listen_port = 12344
+
+;; HTTP proxy specific requests
+[transform:feeder -> net:server -> net:transport]
+listen_port = 8080
+
+;;; return the feeder to get additional connections
+[net:transport -> transform:feeder]
+
+;;; filter access to this network server
+[net:transport -> net:filter:access -> (access_filter)]
+access_acl = test/acl.filter
+
+[(access_filter) -> net:proxy:registration]
+
+;; registered as a LINKER here so that we can have a FAN-IN operation
+[net:proxy:registration -> net:proxy:session]
+
+;; the following are CLASSIFICATION operation registered as a LINKER
+;; Basically, if there are no explicit FORMAT match
+;; (i.e. net:proxy:analysis:happy, it will trigger the
+;; net:proxy:analysis:* match which will send it back to the net:proxy
+;; as-is without any additional filtering or scanning
+[net:proxy:session -> net:proxy:analysis:*]
+
+;;;;;;;;;
+;; HTTP
+[net:proxy:analysis:http -> net:proxy:session:http -> (http_session)]
+;;[net:proxy:analysis:smtp -> http:proxy:session:smtp -> (smtp_session)]
+
+[(http_session) -> (filter_http)]
+;; sending net:proxy:stream back to net:proxy:session in order to
+;; handle KEEPALIVE and repeat proxy operations to different hosts!
+[(filter_http) -> net:proxy:stream:http -> net:proxy:session]
+
+;;;;;;;;;
+;; SMTP
+;;[(smtp_session) -> (filter_smtp)]
+;; filter for SMTP communication
+;;[(filter_smtp) -> net:proxy:stream:smtp -> net:proxy:session]
+
+;;;;;;;;;;;;
+;; Generic
+;; match for any OTHER PROTOCOL commmunication (needs to come LAST)
+[net:proxy:analysis:* -> net:proxy:session:generic -> (generic_session)]
+
+;; for now, simply convert to stream and flush it
+[(generic_session) -> net:proxy:stream:generic -> net:proxy:stream:flush]
+
+
+;; logging
+[(access_filter)   -> data:log:message -> (log)]
+[(protocol_filter) -> data:log:message -> (log)]
+[(filter_http) -> data:log:message -> (log)]
+[(filter_smtp) -> data:log:message -> (log)]
+
+[(log) -> data:log:file]
+logfile = /var/log/access.log
+

@@ -1,0 +1,8 @@
+[transform:module -> transform:engine]
+module = corenova.data.processor.transformation
+
+[transform:module -> transform:engine]
+module = corenova.xform.helloworld
+
+[transform:feeder -> hello -> sleep -> world -> sleep -> transform:feeder]
+sleep_time = 5

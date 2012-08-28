@@ -1,0 +1,8 @@
+#!/bin/sh
+
+LIBPATH="@top_srcdir@/src/modules:@prefix@/lib"
+VALGRIND="valgrind --leak-check=yes --log-file-exactly=valgrind.out --suppressions=/Programs/Valgrind/Current/lib/valgrind/default.supp --show-reachable=yes --error-limit=no"
+
+[ $# -gt 0 ] || { echo "call with PROGRAM and arguments"; exit 1; }
+
+NOVAMODULE_PATH=$LIBPATH $VALGRIND $@

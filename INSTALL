@@ -1,0 +1,8 @@
+to install:
+
+./bootstrap
+./configure
+make
+make install
+
+done.

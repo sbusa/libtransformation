@@ -1,0 +1,83 @@
+#
+# $Id: README.xform,v 1.1 2004/10/14 00:25:00 saint Exp $
+#---------------------------
+# $Log: README.xform,v $
+# Revision 1.1  2004/10/14 00:25:00  saint
+# adding documentation...
+#
+# Revision 1.2  2004/10/09 02:08:47  saint
+# some issues with .i generation...
+#
+#---------------------------
+# created by: Peter K. Lee
+#---------------------------
+
+[XFORMXFER LANGUAGE]
+
+The essence of the language is wrapped around the simple paradigm that
+all form of INPUT and OUTPUT operations have 2 states: one of
+transformation, and the other of transfer.
+
+Every action is a transition from one state to the other, and a
+program can be defined by simply listing those "in-between" states.
+
+Therefore, all software that exists and will exist in the future can
+originate from one single binary (the transformation engine).  The
+variations of state and functionality can be defined and extended
+using the modular foundation as the building blocks, and behavior
+encapsulated into a text file that defines the transitions and
+parameters governing that transition.  
+
+A data state is defined by the following:
+
+application:format:subformat:...@medium:type:subtype:...
+
+The left side of the '@' is the truth value of WHAT the data is.
+The right side of the '@' is the representational value of HOW the
+data is.
+
+i.e.
+snort:unified@file:0.1
+snort:unified@db:mysql:0.3
+snort:unified:analysis@raw:0.4
+nova:client@net:ssl
+
+A. REPRESENTATIONAL TRANSFORMATION
+
+[snort:unified@file:0.1 -> snort:unified@raw:0.1]
+
+As you can see, the truth value of what the data is has not changed.
+However, the representational state has changed, basically the data
+stored in a file has been transformed into binary data in memory.
+
+
+B. DERIVATIVE TRANSFORMATION
+
+[snort:unified@raw:0.1 -> snort:unified:analysis@raw:0.2]
+
+Basically, the truth value of what the data was orignally has been
+transformed into a different sub-state that describes the original
+truth value.  This type of transformation is IRREVERSIBLE.  i.e. you
+cannot transform from a substate back into the original state.
+
+
+C. INTERNAL TRANSFER
+
+[nova:module:nova_client->nova:xform]
+
+No transformation of the truth value takes place, but the data has
+been 'absorbed' into an open-ended entity that will utilize the truth
+value in ways unimaginable.  In the example, we're loading module
+called 'nova_client' into the transformation engine.
+
+
+D. EXTERNAL TRANSFER
+
+[snort:unified:analysis@raw:0.4->nova:client@net:ssl]
+
+No transformation of the truth value takes place, but the data is
+'moved' from one place to another application domain.  In the example,
+the data is being transferred from memory binary state across the net
+using a SSL connection.
+
+

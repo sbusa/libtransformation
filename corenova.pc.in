@@ -1,0 +1,10 @@
+prefix=@prefix@
+libdir=${prefix}/lib/corenova
+includedir=${prefix}/include/corenova
+
+Name: CORENOVA FRAMEWORK
+Description: Distributed Dynamic Transformation Engine libraries and tools
+Version: 0.3
+Requires: 
+Libs: -L${libdir} -lNovaLoader
+Cflags: -I${includedir}
