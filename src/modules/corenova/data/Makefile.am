@@ -1,4 +1,4 @@
-SUBDIRS = db processor
+SUBDIRS = db processor parser
 
 INCLUDES = -I$(top_builddir)/src/include
 
@@ -58,11 +58,6 @@ md5_la_CFLAGS       = -DMODULE=corenova_data_md5
 pkglib_LTLIBRARIES += pipe.la
 pipe_la_SOURCES     = pipe.c
 pipe_la_CFLAGS      = -DMODULE=corenova_data_pipe
-
-pkglib_LTLIBRARIES  += gumbo.la
-processor_la_SOURCES = gumbo.c
-processor_la_CFLAGS  = -DMODULE=corenova_data_parser
-
 
 ##
 # Data searching libraries
