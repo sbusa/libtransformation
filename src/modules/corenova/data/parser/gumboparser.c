@@ -5,7 +5,7 @@ THIS = {
     .version = "2.0",
     .author = "Peter K. Lee <saint@corenova.com>",
     .description = "This module provides a set of gumbo html5 parser specific operations.",
-    .implements = LIST("Gumbo"),
+    .implements = LIST("GumboParser"),
     .requires = LIST("corenova.data.array", "corenova.data.list", "corenova.data.md5")
 };
 
