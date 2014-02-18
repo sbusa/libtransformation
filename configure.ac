@@ -304,8 +304,15 @@ AC_CHECK_HEADERS(linux/watchdog.h, [
 
 AM_CONDITIONAL(BUILD_WATCHDOG, test x$build_watchdog = xtrue)
 
+
+### includng gumbo flags
+## condinitional check to be added
 GUMBO_CFLAGS="-I/usr/local/include/"
 LIBGUMBO=" -L/usr/local/lib -lgumbo"
+
+CPPFLAGS="${CPPFLAGS} $GUMBO_CFLAGS"
+LDFLAGS="${LDFLAGS} ${LIBGUMBO}"
+
 
 ###
 dnl Allow a '--with-mysql' or '--without-mysql' option, default to yes.
