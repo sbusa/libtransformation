@@ -15,4 +15,9 @@ mysql_la_LIBADD     = @LIBGUMBO@
 
 #endif
 
+pkglib_LTLIBRARIES += json-c.la
+generic_la_SOURCES  = json-c.c
+generic_la_CFLAGS   = -DMODULE=corenova_data_parser_json-c
+
+
 
