@@ -84,6 +84,12 @@ reverseDataPipe (data_pipe_t *pipe) {
         int oldOut = pipe->fds[1].fd;
         pipe->fds[1].fd = pipe->fds[0].fd;
         pipe->fds[0].fd = oldOut;
+
+        if (pipe->ssl[0] && pipe->ssl[1]) {
+            ssl_t *temp = pipe->ssl[0];
+            pipe->ssl[1] = pipe->ssl[0];
+            pipe->ssl[0] = temp;		
+	}	
     }
 }
 

@@ -184,6 +184,9 @@ destroySSL (ssl_t **sslPtr) {
 				SSL_shutdown (ssl->conn);
 				SSL_free (ssl->conn);
 			}
+			if (ssl->ctx){
+				SSL_CTX_free(ssl->ctx);
+			}
 			/* SSL_free indirectly removes it, damn this was causing the problem... */
 //			BIO_free (ssl->sslBio);
 //			
