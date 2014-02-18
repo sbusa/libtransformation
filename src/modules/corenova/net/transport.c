@@ -91,12 +91,10 @@ _destroy (transport_t **transportPtr) {
                      if (ssl) {
                          tcp_t *tcp = ssl->tcp;
                          I (SSLConnector)->destroy (&transport->connection.ssl);
-#if 0
                          /* Ravi: Found in my testing that tcp destroy need not be called when doing SSL Shutdown.
                           * It fixes un-needed RST issue in proxy.
                           */
                          I (TcpConnector)->destroy (&tcp); 
-#endif
                      }
                      break;
                 }
