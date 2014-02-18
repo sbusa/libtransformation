@@ -1,5 +1,5 @@
-#ifndef __tcc_H__
-#define __tcc_H__
+#ifndef __compiler_H__
+#define __compiler_H__
 
 #include <corenova/interface.h>
 #include <corenova/data/file.h>

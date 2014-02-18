@@ -16,11 +16,6 @@ THIS = {
 /*//////// INTERFACE ROUTINES //////////////////////////////////////////*/
 
 static configuration_t *
-_parseString (const char *string) {
-    return NULL;
-}
-
-static configuration_t *
 _parseFile (file_t *file) {
     /* internal lookup caching of the common interfaces being used */
 	I_TYPE(File)          *I_FILE     = I(File);
@@ -74,17 +69,15 @@ _parseFile (file_t *file) {
         } else {
             DEBUGP (DERR,"_praseFile","unable to create an instance of configuration object");
         }
-    } else {
-        DEBUGP(DERR,"_parseFile","unable to retrieve file handle for %s",file->name);
     }
 	return NULL;
 }		
 
 /* a convenience function of returning the configuration based on a filename */
 static configuration_t *
-_parseFileByName (const char *filename) {
+_parse (const char *filename) {
     file_t *file = I (File)->new (filename,"ro");
-    configuration_t *conf = _parseFile (I (File)->new (filename,"ro"));
+    configuration_t *conf = _parseFile (file);
     I (File)->destroy (&file);
     return conf;
 }
@@ -112,8 +105,7 @@ _writeFile (const char *filename, configuration_t *conf) {
 }
 
 IMPLEMENT_INTERFACE (IniConfigParser) = {
-    .parse           = _parseString,
-    .parseByFile     = _parseFile,
-	.parseByFilename = _parseFileByName,
-	.write           = _writeFile
+    .parse         = _parse,
+    .parseByFile   = _parseFile,
+	.write         = _writeFile
 };

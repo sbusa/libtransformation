@@ -1,0 +1,477 @@
+//#include "uproxy-vars.xform"
+
+[transform:module -> transform:engine]
+module = corenova.data.processor.transformation
+
+[transform:module -> transform:engine]
+module = corenova.net.server
+
+[transform:module -> transform:engine]
+module = corenova.net.filter
+
+[transform:module -> transform:engine]
+module = corenova.data.pipe
+
+[transform:module -> transform:engine]
+module = cpn.net.analysis
+
+[transform:module -> transform:engine]
+module = cpn.net.proxy
+
+#ifdef HAVE_KASPERSKY
+[transform:module -> transform:engine]
+module = cpn.net.kav8
+#endif
+
+#ifdef HAVE_FFPROXY
+[transform:module -> transform:engine]
+module = cpn.net.ffproxy
+#endif
+
+#ifdef HAVE_CATDNS
+[transform:module -> transform:engine]
+module = cpn.net.catdns
+#endif
+
+#ifdef HAVE_COMMTOUCH
+[transform:module -> transform:engine]
+module = cpn.net.commtouch
+#endif
+
+#ifdef HAVE_SAFESEARCH
+[transform:module -> transform:engine]
+module = cpn.net.filter.safesearch
+#endif
+
+#ifdef HAVE_NFQUEUE
+
+[transform:module -> transform:engine]
+module = corenova.sys.nfqueue
+
+;;register syn packet as part of original connection request
+[transform:feeder -> sys:nfqueue -> sys:nfqueue:packet -> (nfqueue_packet)]
+nfqueue_size = 256 
+nfqueue_mode = meta 
+nfqueue_num = 1 
+
+;;return the feeder to get additional connections
+[(nfqueue_packet) -> transform:feeder]
+
+;;filter the retrieved nfqueue:packet and set verdict
+[(nfqueue_packet) -> sys:nfqueue:filter -> (nfqueue_packet_filter)]
+
+;;push verdict back into the queue
+[(nfqueue_packet_filter) -> sys:nfqueue]
+[(nfqueue_packet_filter) -> net:proxy:registration]
+
+#endif // HAVE_NFQUEUE
+
+;;register new connection requests from a generic network server
+[transform:feeder -> net:server -> net:transport -> (connection)]
+listen_port = 12345 
+
+;;return the feeder to get additional connections
+[(connection) -> transform:feeder]
+
+;;filter access to this network server
+[(connection) -> net:filter:access -> (access_filter)]
+filter_access = etc/example/filter.access 
+
+[(access_filter) -> net:proxy:registration]
+
+;;uncomment to enable load-balancing
+[net:proxy:registration -> net:proxy:session]
+
+;;for dynamic handling
+
+#define PROTOCOL_ANALYSIS_MODULES "cpn.net.analysis.ssl,cpn.net.analysis.http,cpn.net.analysis.smtp,cpn.net.analysis.pop3"
+
+// consider supporting PROTOCOL_ANALYSIS_MODULES cpn.net.analysis.*
+
+[net:proxy:session -> net:analysis::*]
+protocol_analysis_timeout = 10000 
+protocol_analysis_modules = PROTOCOL_ANALYSIS_MODULES 
+
+;;=======================
+#ifdef PROXY_SSL
+; optional - #include "uproxy-ssl.xform"
+
+[transform:module -> transform:engine]
+module = cpn.net.proxy.ssl
+
+[net:analysis::ssl -> net:proxy:session::ssl -> (ssl_session)]
+
+[(ssl_session) -> net:proxy:transaction::ssl]
+transaction_datascan_maxsize = 1M 
+transaction_keepalive_timeout = 5000 
+transaction_timeout = 10000 
+transaction_dataread_timeout = 3s 
+transaction_handler_timeout = 10 
+transaction_overflow_maxsize = 64K 
+transaction_max_requests = 100 
+transaction_message_maxsize = 64K 
+
+[net:proxy:transaction::ssl -> transaction:message::*]
+
+;;-------------------------
+;; SSL RESPONSE PROCESSING
+;;-------------------------
+#define NEXT_SYMBOL ssl_response_next
+#define PREV_SYMBOL NEXT_SYMBOL
+
+[transaction:message::response||ssl:control -> (NEXT_SYMBOL)]
+
+#ifdef CUSTOM_FILTER_SSL
+#define NEXT_SYMBOL ssl_response_next_1
+
+[(PREV_SYMBOL) -> net:domain -> net:cf:ffproxy -> data:filter:verdict -> net:ssl:modify -> data:filter -> (NEXT_SYMBOL)]
+ffproxy_filter_dir = /config/ffproxy/data/db 
+ffproxy_template_dir = /config/ffproxy/data/html 
+ffproxy_filter_log = /var/log/access.log 
+
+#define PREV_SYMBOL NEXT_SYMBOL
+#endif
+
+#define CATEGORY_FILTER_SSL
+
+#ifdef CATEGORY_FILTER_SSL
+#define NEXT_SYMBOL ssl_response_next_2
+
+[(PREV_SYMBOL) -> net:domain -> net:cf:commtouch -> data:filter:verdict -> net:ssl:modify -> data:filter -> (NEXT_SYMBOL)]
+commtouch_dns_port = 5678 
+commtouch_category_map = /config/ffproxy/data/db/commtouch.map 
+commtouch_policy = /config/ffproxy/data/db/filter.category.match 
+commtouch_dns_ip = 127.0.0.1 
+commtouch_logfile = /var/log/access.log 
+commtouch_template = /config/ffproxy/data/html/filtered_category 
+
+#define PREV_SYMBOL NEXT_SYMBOL
+#endif
+
+;; always run after processing filters
+[(PREV_SYMBOL) -> transaction:message::response||ssl:control||*]
+
+;;-------------------------
+;; SSL VERDICT PROCESSING
+;;-------------------------
+
+[transaction:message::response/ssl:control/filter:deny -> (ssl_deny)]
+
+[transaction:message::response/ssl:* ->  (ssl_allow)]
+
+[(ssl_deny) -> data:log:message -> (ssl_log)]
+[(ssl_deny) -> transaction:message@pass]
+
+[(ssl_allow) -> data:log:message -> (ssl_log)]
+
+;; XXX - only one of the below should be active!
+[(ssl_allow) -> transaction:message@pass]
+[(ssl_allow) -> data:pipe:stream -> (stream_flush)]
+
+[(ssl_log) -> data:log:file]
+
+
+#endif // PROXY_SSL
+;;==========================
+
+
+;;==========================
+;#include "uproxy-http.xform"
+
+#ifdef PROXY_HTTP
+
+[transform:module -> transform:engine]
+module = cpn.net.proxy.http
+
+[net:analysis::http -> net:proxy:session::http -> (http_session)]
+
+[(http_session) -> net:proxy:transaction::http]
+transaction_datascan_maxsize = 1M 
+transaction_keepalive_timeout = 5000 
+transaction_timeout = 10000 
+transaction_dataread_timeout = 3s 
+transaction_handler_timeout = 10 
+transaction_overflow_maxsize = 64K 
+transaction_max_requests = 100 
+transaction_message_maxsize = 64K 
+
+[net:proxy:transaction::http -> transaction:message::*]
+
+;;-------------------------
+;; HTTP REQUEST PROCESSING
+;;-------------------------
+#define NEXT_SYMBOL http_request_next
+#define PREV_SYMBOL NEXT_SYMBOL
+
+#ifdef KASPERSKY_HTTP_UPLOAD
+;;send http request data to kav for scanning
+[transaction:message::request/http:data -> net:av:kav -> transaction:message::request||http:data||*]
+kav_tempdir = /tmp 
+kav_timeout = 1000 
+kave_mft = /kav_base/kavbase.mft 
+kave_kdl = /kav_base/kavbase.kdl 
+http_template_virus = /config/uproxy/template-upload.virus 
+kav_sessions = 4 
+#endif
+
+[transaction:message::request/http:* -> (NEXT_SYMBOL)]
+
+#ifdef CUSTOM_FILTER_HTTP
+#define NEXT_SYMBOL http_request_next_1
+
+[(PREV_SYMBOL) -> net:cf:ffproxy -> net:cf:ffproxy::result -> data:filter -> (NEXT_SYMBOL)]
+ffproxy_filter_dir = /config/ffproxy/data/db 
+ffproxy_template_dir = /config/ffproxy/data/html 
+ffproxy_filter_log = /var/log/access.log 
+
+#define PREV_SYMBOL NEXT_SYMBOL
+#endif
+
+#ifdef COMMTOUCH_CATEGORY
+#define NEXT_SYMBOL http_request_next_2
+
+[(PREV_SYMBOL) -> net:cf:commtouch -> data:filter -> (NEXT_SYMBOL)]
+commtouch_dns_port = 5678 
+commtouch_dns_ip = 127.0.0.1 
+commtouch_category_map = /config/ffproxy/data/db/commtouch.map 
+commtouch_policy = /config/ffproxy/data/db/filter.category.match 
+commtouch_logfile = /var/log/access.log 
+commtouch_template = /config/ffproxy/data/html/filtered_category 
+
+#define PREV_SYMBOL NEXT_SYMBOL
+#endif
+
+#ifdef SAFESEARCH
+#define NEXT_SYMBOL http_request_next_3
+
+[(PREV_SYMBOL) -> net:filter:safesearch -> data:filter -> (NEXT_SYMBOL)]
+safesearch_filter_dir = /config/safesearch 
+
+#define PREV_SYMBOL NEXT_SYMBOL
+#endif
+
+#ifdef KASPERSKY_HTTP_UPLOAD
+#define NEXT_SYMBOL http_request_next_4
+
+[(PREV_SYMBOL) -> net:av:kav -> (NEXT_SYMBOL)]
+kav_timeout = 1000 
+kav_tempdir = /tmp 
+kave_mft = /kav_base/kavbase.mft 
+kave_kdl = /kav_base/kavbase.kdl 
+http_template_virus = /config/uproxy/template-upload.virus 
+kav_sessions = 4 
+
+#define PREV_SYMBOL NEXT_SYMBOL
+#endif
+
+;; always run after processing filters
+[(PREV_SYMBOL) -> transaction:message::request||http:*||*]
+
+#undef PREV_SYMBOL
+#undef NEXT_SYMBOL
+
+;;-------------------------
+;; HTTP RESPONSE PROCESSING
+;;-------------------------
+#define NEXT_SYMBOL http_response_next_1
+#define PREV_SYMBOL NEXT_SYMBOL
+
+;;;;;;;;;;;;;;;
+;; performs initial http data response classification to extrapolate content-type
+[transaction:message::response||http:data -> http:data:transaction -> http:data::response -> http:data::response||*]
+
+#ifdef SAFESEARCH
+
+[http:data::response||html -> (NEXT_SYMBOL)]
+[http:data::response||xml -> (NEXT_SYMBOL)]
+[http:data::response||json -> (NEXT_SYMBOL)]
+
+#define PREV_SYMBOL NEXT_SYMBOL
+#endif
+
+// we don't want to scan image files for viruses
+[http:data::response||image -> data:filter -> (pass_transaction)]
+
+;; default case where no particular interesting data content-type discovered (assuming kav scanning is ON)
+[http:data::response||* -> data:filter -> (NEXT_SYMBOL)]
+
+#ifdef SAFESEARCH
+#define NEXT_SYMBOL http_response_next_2
+
+;;;;;;;;;;;;;;;
+;; performs safesearch clasification on http transaction to discover search engines
+[(PREV_SYMBOL) -> net:filter:safesearch::classify||*]
+safesearch_classify_rules = /etc/uproxy/safesearch-classify.ini
+
+[net:filter:safesearch::classify||google -> (domain_scan)]
+[net:filter:safesearch::classify||yahoo -> (domain_scan)]
+[net:filter:safesearch::classify||bing -> (domain_scan)]
+
+;; default case where no particular interesting classification discovered via safesearch transform
+[net:filter:safesearch::classify||* -> transform:back -> http:data::response||* -> data:filter -> (NEXT_SYMBOL)]
+
+;;;;;;;;;;;;;;;
+;; performs domain scanning and categorization on content
+[(domain_scan) -> http:data::response||* -> net:cf:commtouch::categories -> data:filter||domains -> (safesearch_filter)]
+
+[(safesearch_filter) -> net:filter:safesearch::filter -> data:filter -> (NEXT_SYMBOL)]
+
+#define PREV_SYMBOL NEXT_SYMBOL
+#endif // SAFESEARCH
+
+#ifdef KASPERSKY_HTTP_DOWNLOAD
+#define NEXT_SYMBOL http_response_next_3
+;; kaspersky AV scanning of content
+[(PREV_SYMBOL) -> net:av:kav -> (NEXT_SYMBOL)]
+kav_timeout = 1000 
+kav_tempdir = /tmp 
+kave_mft = /kav_base/kavbase.mft 
+kave_kdl = /kav_base/kavbase.kdl 
+http_template_virus = /config/uproxy/template-upload.virus 
+kav_sessions = 4 
+
+#define PREV_SYMBOL NEXT_SYMBOL
+#endif // KASPERSKY
+
+;; always run after processing filters
+[(PREV_SYMBOL) -> transaction:message::response||http:data||*]
+
+;;-------------------------
+;; HTTP VERDICT PROCESSING
+;;-------------------------
+
+[transaction:message::request||http:*||filter:deny -> (http_deny)]
+
+[transaction:message::request||http:data||filter:virus -> (http_virus)]
+
+[transaction:message::response||http:data||filter:virus -> (http_virus)]
+
+[transaction:message::response||http:* -> (http_allow)]
+
+;;when our request gets denied, hijack the request and send a notification back and terminate connection
+[(http_deny) -> data:log:message -> (http_log)]
+[(http_deny) -> transaction:message@reply]
+
+;;when we receive a virus, override with template message and terminate connection
+[(http_virus) -> data:log:message -> (http_log)]
+[(http_virus) -> transaction:message@pass]
+
+[(http_allow) -> data:log:message -> (http_log)]
+[(http_allow) -> (pass_transaction)]
+
+[(http_log) -> data:log:file]
+http_logfile = /var/log/access.log 
+
+#endif // PROXY_HTTP
+
+;;when message has been sync (request -> response), then we re-process this session from scratch
+[transaction:message::sync -> transform:back -> net:proxy:session]
+
+
+#ifdef PROXY_SMTP
+; optional #include "uproxy-smtp.xform"
+
+[transform:module -> transform:engine]
+module = cpn.net.proxy.smtp
+
+;;smtp_default_server=smtp.clearpathnet.com:25
+[net:analysis::smtp->net:proxy:session::smtp->(smtp_session)]
+
+[(smtp_session)->net:proxy:transaction::smtp]
+transaction_datascan_maxsize = 3M 
+transaction_timeout = 30000              ; 30 seconds 
+transaction_handler_timeout = 100 ; 100ms 
+transaction_overflow_maxsize = 64K 
+transaction_max_requests = 100 
+transaction_message_maxsize = 4K 
+
+[net:proxy:transaction::smtp->transaction:message::*]
+
+// some custom logic for handling SMTP filters
+
+[transaction:message::response||smtp:reply->net:smtp:filter:extension->transform:back->transaction:message::*->(pass_transaction)]
+smtp_filter_extensions = CHUNKING,BINARYMIME,XEXCH50 
+
+[transaction:message::hijack||smtp:command->(hijack_transaction)]
+
+;;kav - generic kav scan result handler (only for SMTP... for now)
+[net:av:kav::virus->transform:back->transaction:message::*->(hijack_transaction)]
+
+[net:av:kav::*->transform:back->transaction:message::*->(pass_transaction)]
+
+#endif // PROXY_SMTP
+
+
+#ifdef PROXY_POP3
+; optional #include "uproxy-pop3.xform"
+
+[transform:module -> transform:engine]
+module = cpn.net.proxy.pop3
+
+;;pop3_default_server=hosting.clearpathnet.com:110
+[net:analysis::pop3 -> net:proxy:session::pop3 -> (pop3_session)]
+
+[(pop3_session)->net:proxy:transaction::pop3]
+transaction_datascan_maxsize = 3M 
+transaction_timeout = 60000             ; 60 seconds 
+transaction_handler_timeout = 100 ; 100ms 
+transaction_overflow_maxsize = 64K 
+transaction_max_requests = 100 
+transaction_message_maxsize = 4K 
+
+[net:proxy:transaction::pop3 -> transaction:message::*]
+
+// some custom logic for handling POP3 filters
+
+
+#endif // PROXY_POP3
+
+#ifdef PROXY_IMAP
+; optional #include "uproxy-imap.xform"
+
+[transform:module -> transform:engine]
+module = cpn.net.proxy.imap
+
+;;pop3_default_server=hosting.clearpathnet.com:110
+[net:analysis::imap -> net:proxy:session::imap -> (imap_session)]
+
+[(imap_session)->net:proxy:transaction::imap]
+transaction_datascan_maxsize = 3M 
+transaction_timeout = 60000             ; 60 seconds 
+transaction_handler_timeout = 100 ; 100ms 
+transaction_overflow_maxsize = 64K 
+transaction_max_requests = 100 
+transaction_message_maxsize = 4K 
+
+[net:proxy:transaction::imap -> transaction:message::*]
+
+// some custom logic for handling IMAP filters
+
+#endif // PROXY_IMAP
+
+
+;;--------------------------
+;; GENERIC PROCESSING
+;; match for any OTHER PROTOCOL commmunication (needs to come LAST)
+[net:analysis::* -> net:proxy:session::unknown -> data:pipe:stream -> (stream_flush)]
+
+;;universal handler for all forms of stream::* in order to flush it. according to the protocol, and upon success, go back to the. original session for further processing
+[(stream_flush) -> data:pipe:stream@flush -> transform:back -> net:proxy:session]
+
+;;universal handler for generic messages, as well as hijack and pass transactions
+[transaction:message::* -> (pass_transaction)]
+
+[(hijack_transaction) -> transaction:message@hijack->transform:back->net:proxy:transaction::*]
+
+[(pass_transaction) -> transaction:message@pass->transform:back -> net:proxy:transaction::*]
+
+;;logging - TODO, does not work right now
+[(access_filter)->data:log:message->(log)]
+
+[(protocol_filter)->data:log:message->(log)]
+[(filter_http)->data:log:message->(log)]
+[(filter_smtp)->data:log:message->(log)]
+
+[(log)->data:log:file]
+logfile = /var/log/access.log 
+

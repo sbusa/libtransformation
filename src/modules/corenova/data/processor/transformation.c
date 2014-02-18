@@ -1116,7 +1116,7 @@ _getTransformationMatrixFromConfiguration (configuration_t *conf) {
     configuration_t *xConfig = NULL;
     category_t *dataProcessor = I (Configuration)->getCategory (conf,"DataProcessor");
     if (dataProcessor && I (Category)->getParamValue (dataProcessor,"transformation")) {
-        xConfig = I (IniConfigParser)->parseByFilename (I (Category)->getParamValue (dataProcessor,"transformation"));
+        xConfig = I (IniConfigParser)->parse (I (Category)->getParamValue (dataProcessor,"transformation"));
     } else {
         xConfig = I (Configuration)->copy (conf);
     }

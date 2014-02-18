@@ -42,8 +42,9 @@ procmoduleinclude_HEADERS =						\
 	corenova/data/processor/transformation.h
 
 confmoduleincludedir = $(includedir)/corenova/data/configuration
-confmoduleinclude_HEADERS =						\
-	corenova/data/configuration/ini.h			
+confmoduleinclude_HEADERS =							\
+	corenova/data/configuration/ini.h				\
+	corenova/data/configuration/xform.h			
 
 netmoduleincludedir = $(includedir)/corenova/net
 netmoduleinclude_HEADERS =						\

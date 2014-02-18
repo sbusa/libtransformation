@@ -10,7 +10,6 @@ pkglib_LTLIBRARIES += ini.la
 ini_la_SOURCES  = ini.c
 ini_la_CFLAGS   = -DMODULE=corenova_data_configuration_ini
 
-
-# pkglib_LTLIBRARIES += xform.la
-# xform_la_SOURCES    = xform.c
-# xform_la_CFLAGS  = -DMODULE=corenova_data_configuration_xform
+pkglib_LTLIBRARIES += xform.la
+xform_la_SOURCES    = xform.c
+xform_la_CFLAGS  = -DMODULE=corenova_data_configuration_xform

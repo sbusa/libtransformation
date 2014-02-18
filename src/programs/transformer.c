@@ -5,7 +5,7 @@ THIS = {
 	.version = "1.0",
 	.author = "Peter K. Lee <saint@corenova.com>",
 	.description = "This program should allow you to see the transformation engine in action.",
-	.requires = LIST ("corenova.data.inifile",
+	.requires = LIST ("corenova.data.configuration.xform",
                       "corenova.data.array",
                       "corenova.sys.debug",
                       "corenova.sys.getopts",
@@ -18,7 +18,7 @@ THIS = {
 	}
 };
 
-#include <corenova/data/inifile.h>
+#include <corenova/data/configuration/xform.h>
 #include <corenova/data/array.h>
 #include <corenova/sys/debug.h>
 #include <corenova/sys/getopts.h>
@@ -40,20 +40,19 @@ int main(int argc, char **argv) {
         debug_level = I (Parameters)->getValue (params,"debug_level");
         logdir      = I (Parameters)->getValue (params,"logdir");
 
+        /* process the global settings */
+        if (debug_level) {
+            char *debug_levels[] = DEBUG_LEVELS;
+            DebugLevel = atoi(debug_level);
+            DEBUGP(DINFO, "main", "setting debug level to %s", debug_levels[DebugLevel]+1);
+        }
+        if (logdir) {
+            I (Debug)->logDir (logdir);
+            DEBUGP(DINFO, "main", "setting log output to %s", logdir);
+        }
         if (config_file) {
-            configuration_t *conf = I (IniFileParser)->parse (config_file);
+            configuration_t *conf = I (XformConfigParser)->parse (config_file);
 			if (conf) {
-                /* process the global settings */
-                if (debug_level) {
-                    char *debug_levels[] = DEBUG_LEVELS;
-                    DebugLevel = atoi(debug_level);
-                    DEBUGP(DINFO, "main", "setting debug level to %s", debug_levels[DebugLevel]+1);
-                }
-                if (logdir) {
-                    I (Debug)->logDir (logdir);
-                    DEBUGP(DINFO, "main", "setting log output to %s", logdir);
-                }
-
                 /* main operation */
                 transform_engine_t *teng = I (TransformEngine)->new (conf);
                 if (teng) {

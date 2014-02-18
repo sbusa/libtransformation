@@ -5,15 +5,16 @@ THIS = {
 	.author      = "Peter K. Lee <saint@corenova.com>",
 	.description = "This module enables dynamic c compilation and preprocessing.",
 	.implements  = LIST ("DynamicCompiler"),
-	.requires    = LIST ("corenova.data.string")
+	.requires    = LIST ("corenova.data.string","corenova.data.file")
 };
 
 #include <corenova/sys/compiler.h>
+#include <corenova/data/file.h>
 #include <corenova/data/string.h>
 
 static tinycc_t *
 _newTinycc (const char *opts) {
-    tinycc_t *tcc = NULL;
+    tinycc_t *tcc = (tinycc_t *) calloc (1,sizeof (tinycc_t));
     if (tcc) {
         tcc->s = tcc_new ();
         if (tcc->s) {
