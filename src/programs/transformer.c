@@ -53,16 +53,27 @@ int main(int argc, char **argv) {
         if (config_file) {
             configuration_t *conf = I (XformConfigParser)->parse (config_file);
 			if (conf) {
+                char *confout = I (Configuration)->toString (conf);
+                printf ("\nSTAGE 1: AFTER XFORM CONFIG PARSER (using %s)\n",config_file);
+                printf ("------------------------------------------------------------------------------\n");
+                printf ("%s\n",confout);
+                
                 /* main operation */
                 transform_engine_t *teng = I (TransformEngine)->new (conf);
                 if (teng) {
-                    printf ("=== [ RULES - from configuration ] ===\n");
+                    printf ("\nSTAGE 2: AFTER XFORM ENGINE PROCESSING (using %s)\n",config_file);
+                    printf ("------------------------------------------------------------------------------\n");
                     I (TransformEngine)->printRules (teng);
+
+                    printf ("\nSTAGE 3: AFTER XFORM SYMBOL EXPANSION PROCESSING (using %s)\n",config_file);
+                    printf ("------------------------------------------------------------------------------\n");
                     transformation_matrix_t *matrix = I (TransformEngine)->resolve (teng);
                     I (TransformEngine)->destroy (&teng);
                     if (matrix) {
+                        printf ("\nSTAGE 4: FINAL XFORM MATRIX EXECUTION PLAN (using %s)\n",config_file);
+                        printf ("------------------------------------------------------------------------------\n");
                         I (TransformationMatrix)->print (matrix);
-                        sleep (30);
+                        sleep (5);
                         I (TransformationMatrix)->destroy (&matrix);
                     }
                 }

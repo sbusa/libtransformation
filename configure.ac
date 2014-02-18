@@ -1,4 +1,4 @@
-AC_INIT([corenova], [1.3.0],
+AC_INIT([corenova], [1.4.0],
 	[http://bugs.corenova.com/])
 AC_CONFIG_SRCDIR(configure.ac)
 

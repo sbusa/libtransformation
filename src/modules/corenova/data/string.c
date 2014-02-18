@@ -186,7 +186,8 @@ _trim(const char *string) {
 
 static ssize_t
 _join(char **to, const char *with) {
-    size_t orig_len = 0, with_len = strlen(with);
+    size_t orig_len = 0, with_len = 0;
+    if (with) with_len=strlen(with);
     if (!with_len) return 0;
     if (*to) orig_len = strlen(*to);
     *to = realloc(*to, sizeof (char) *(orig_len + with_len + 2));
