@@ -290,6 +290,33 @@ AM_CONDITIONAL(BUILD_NFQUEUE, test x$build_nfqueue = xtrue)
 
 
 ###
+AC_MSG_NOTICE([checking for existence of tiny c compiler library])
+
+AC_CHECK_HEADERS(libtcc.h,
+  AC_CHECK_LIB(tcc, tcc_new, [
+    AC_DEFINE(HAVE_LIBTCC, 1, [Define this if tiny c compiler library is available])
+  	  LIBTCC="-ltcc"
+	  build_tcc=true ],
+  AC_MSG_RESULT( [
+  ---------------------------------------------------------------------
+  Tiny C Compiler library not found.  For configuration of transformations
+  dynamic preprocessing of configuration rules will not be supported.
+  ---------------------------------------------------------------------
+  ])),
+  AC_MSG_RESULT( [
+  ---------------------------------------------------------------------
+  Tiny C Compiler headers not found.
+  --------------------------------------------------------------------- 
+  ]))
+
+LDFLAGS=$ac_save_LDFLAGS
+
+AC_SUBST(LIBTCC)
+
+AM_CONDITIONAL(BUILD_TCC, test x$build_tcc = xtrue)
+
+
+###
 AC_MSG_NOTICE([checking for existence of watchdog])
 
 AC_CHECK_HEADERS(linux/watchdog.h, [
@@ -695,6 +722,7 @@ src/modules/corenova/Makefile
 src/modules/corenova/data/Makefile
 src/modules/corenova/data/db/Makefile
 src/modules/corenova/data/processor/Makefile
+src/modules/corenova/data/configuration/Makefile
 src/modules/corenova/net/Makefile
 src/modules/corenova/xform/Makefile
 src/modules/corenova/net/proto/Makefile

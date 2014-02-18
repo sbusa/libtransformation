@@ -6,7 +6,7 @@ THIS = {
 	.description = "This module acts as a powerful transformation data processor dealing with transformation logic",
 	.implements  = LIST ("DataProcessor","TransformationProcessor","Transformation","TransformTrace"),
 	.requires    = LIST ("corenova.data.configuration",
-                         "corenova.data.inifile",
+                         "corenova.data.configuration.ini",
                          "corenova.data.array",
 						 "corenova.data.string",
                          "corenova.data.md5",
@@ -21,7 +21,7 @@ THIS = {
 };
 
 #include <corenova/data/processor/transformation.h>
-#include <corenova/data/inifile.h>
+#include <corenova/data/configuration/ini.h>
 #include <corenova/data/string.h>
 #include <corenova/data/md5.h>
 #include <corenova/data/queue.h>
@@ -1116,7 +1116,7 @@ _getTransformationMatrixFromConfiguration (configuration_t *conf) {
     configuration_t *xConfig = NULL;
     category_t *dataProcessor = I (Configuration)->getCategory (conf,"DataProcessor");
     if (dataProcessor && I (Category)->getParamValue (dataProcessor,"transformation")) {
-        xConfig = I (IniFileParser)->parse (I (Category)->getParamValue (dataProcessor,"transformation"));
+        xConfig = I (IniConfigParser)->parseByFilename (I (Category)->getParamValue (dataProcessor,"transformation"));
     } else {
         xConfig = I (Configuration)->copy (conf);
     }

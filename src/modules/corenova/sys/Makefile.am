@@ -49,3 +49,12 @@ watchdog_la_SOURCES = watchdog.c
 watchdog_la_CFLAGS  = -DMODULE=corenova_sys_watchdog
 
 endif
+
+if BUILD_TCC
+
+pkglib_LTLIBRARIES += compiler.la
+compiler_la_SOURCES = compiler.c
+compiler_la_CFLAGS  = -DMODULE=corenova_sys_compiler
+compiler_la_LIBADD  = @LIBTCC@ 
+
+endif
