@@ -1,5 +1,5 @@
 #include <corenova/source-stub.h>
-#include <corenova/data/parser/jsonparser.h>
+#include <corenova/data/parser/json-c.h>
 
 THIS = {
     .version = "2.0",
