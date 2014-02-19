@@ -379,15 +379,16 @@ _printTransformRules (array_t *rules) {
             transform_chain_t *chain = rule->chain;
             printf ("[%02d] ",i+1);
             while (chain) {
-                printf ("%s (%s == %s) -> ",chain->format,
-                        (chain->pseudo?"pseudo":"real"),
-                        (chain->name?chain->name:"anon"));
+                printf ("%s {%s} -> ",chain->format,
+                        (chain->pseudo?"pseudo":"real"));
+                //(chain->name?chain->name:"anon"));
+                // not sure what the above chain->name was for... but everything shows up as anon!
                 chain = chain->next;
             }
             printf ("END\n");
             char *mystring = I (Parameters)->toString (rule->blueprint);
             if (mystring)
-                printf ("%s\n", mystring);
+                printf ("%s", mystring);
         }
     }
 }
@@ -597,8 +598,9 @@ _buildTransformRuleSets (array_t *rules) {
                         I (Array)->add (ruleSet,newRule);
                     } while ((++j < I (Array)->count (newRules)));
                     /* XXX - debugging... */
-                    printf ("=== [ RULESET - compilation ] ===\n");
+                    printf ("// ruleset\n");
                     _printTransformRules (ruleSet);
+                    printf ("\n");
                 }
                 I (Array)->destroy (&newRules,NULL);
                 I (Array)->add (ruleSets,ruleSet);
@@ -1435,7 +1437,7 @@ printTransformationMatrix (transformation_matrix_t *matrix) {
         transformation_matrix_entry_t *entry;
         
         for (i = 0; (set = (array_t *) I (Array)->get (matrix->sets,i)); i++) {
-            printf ("=== [ EXECUTION SET #%d ] ===\n",i);
+            printf ("// matrix execution set #%d\n",i);
             for (j = 0; (rule = (array_t *) I (Array)->get (set,j)); j++) {
                 printf ("[%02d] ",j);
                 for (k = 0; (entry = (transformation_matrix_entry_t *) I (Array)->get (rule,k)); k++) {

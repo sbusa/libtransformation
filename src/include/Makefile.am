@@ -16,7 +16,6 @@ datamoduleinclude_HEADERS =						\
 	corenova/data/database.h					\
 	corenova/data/file.h						\
 	corenova/data/glob.h						\
-	corenova/data/inifile.h						\
 	corenova/data/list.h						\
 	corenova/data/md5.h                         \
 	corenova/data/message.h						\
@@ -42,6 +41,11 @@ procmoduleinclude_HEADERS =						\
 	corenova/data/processor/generic.h			\
 	corenova/data/processor/transformation.h
 
+confmoduleincludedir = $(includedir)/corenova/data/configuration
+confmoduleinclude_HEADERS =							\
+	corenova/data/configuration/ini.h				\
+	corenova/data/configuration/xform.h			
+
 netmoduleincludedir = $(includedir)/corenova/net
 netmoduleinclude_HEADERS =						\
 	corenova/net/filter.h						\
@@ -53,11 +57,11 @@ netmoduleinclude_HEADERS =						\
 	corenova/net/server.h						\
 	corenova/net/session.h						\
 	corenova/net/socket.h						\
-	corenova/net/ssl.h						\
-	corenova/net/tcp.h						\
+	corenova/net/ssl.h							\
+	corenova/net/tcp.h							\
 	corenova/net/transport.h					\
 	corenova/net/activemq.h						\
-	corenova/net/udp.h						\
+	corenova/net/udp.h							\
 	corenova/net/route.h						\
 	corenova/net/pcap.h
 
@@ -70,5 +74,6 @@ sysmoduleinclude_HEADERS =						\
 	corenova/sys/nfqueue.h						\
 	corenova/sys/quark.h						\
 	corenova/sys/signals.h						\
-	corenova/sys/transform.h
+	corenova/sys/transform.h					\
+	corenova/sys/compiler.h
 

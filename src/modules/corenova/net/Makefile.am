@@ -91,9 +91,11 @@ pkglib_LTLIBRARIES += packet.la
 packet_la_SOURCES   = packet.c
 packet_la_CFLAGS    = -DMODULE=corenova_net_packet
 
+if BUILD_PCAP
+
 pkglib_LTLIBRARIES += pcap.la
 pcap_la_SOURCES   = pcap.c
 pcap_la_CFLAGS    = -DMODULE=corenova_net_pcap @PCAP_CFLAGS@
 pcap_la_LIBADD    = @PCAP_LDFLAGS@
 
-
+endif

@@ -24,5 +24,11 @@ EXTRA_libubiqx_la_SOURCES =						\
 	ubiqx/library/ubi_SplayTree.h				\
 	ubiqx/library/ubi_dLinkList.h				\
 	ubiqx/library/ubi_sLinkList.h
-	
 
+# below was experiemental...
+
+# SUBDIRS=tcc-0.9.26
+# noinst_LTLIBRARIES += libtcc.la
+# libtcc_la_LDADD = tcc-0.9.26/libtcc.a
+# libtcc_la_INCLUDE = -Itcc-0.9.26/library
+# libtcc_la_LDFLAGS = -no-undefined -avoid-version -module
