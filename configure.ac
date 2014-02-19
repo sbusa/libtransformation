@@ -333,6 +333,15 @@ AC_CHECK_HEADERS(linux/watchdog.h, [
 AM_CONDITIONAL(BUILD_WATCHDOG, test x$build_watchdog = xtrue)
 
 
+### includng gumbo flags
+## condinitional check to be added
+GUMBO_CFLAGS="-I/usr/local/include/"
+LIBGUMBO=" -L/usr/local/lib -lgumbo"
+
+CPPFLAGS="${CPPFLAGS} $GUMBO_CFLAGS"
+LDFLAGS="${LDFLAGS} ${LIBGUMBO}"
+
+
 ###
 dnl Allow a '--with-mysql' or '--without-mysql' option, default to yes.
 AC_ARG_WITH([mysql],
@@ -727,6 +736,7 @@ src/modules/corenova/data/Makefile
 src/modules/corenova/data/db/Makefile
 src/modules/corenova/data/processor/Makefile
 src/modules/corenova/data/configuration/Makefile
+src/modules/corenova/data/parser/Makefile
 src/modules/corenova/net/Makefile
 src/modules/corenova/xform/Makefile
 src/modules/corenova/net/proto/Makefile

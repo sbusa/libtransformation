@@ -1,4 +1,4 @@
-SUBDIRS = db processor configuration
+SUBDIRS = db processor parser configuration 
 
 INCLUDES = -I$(top_builddir)/src/include
 
