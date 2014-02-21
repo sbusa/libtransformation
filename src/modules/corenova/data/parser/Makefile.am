@@ -12,9 +12,8 @@ gumboparser_la_SOURCES    = gumboparser.c
 gumboparser_la_CFLAGS     = -DMODULE=corenova_data_parser_gumboparser 
 
 
-pkglib_LTLIBRARIES += json-c.la
-generic_la_SOURCES  = json-c.c
-generic_la_CFLAGS   = -DMODULE=corenova_data_parser_json-c
-
+#pkglib_LTLIBRARIES += json-c.la
+#jsonc_la_SOURCES  = json-c.c
+#jsonc_la_CFLAGS   = -DMODULE=corenova_data_parser_json-c
 
 
