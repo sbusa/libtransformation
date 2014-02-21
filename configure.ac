@@ -288,6 +288,32 @@ AC_SUBST(LIBNFQUEUE)
 
 AM_CONDITIONAL(BUILD_NFQUEUE, test x$build_nfqueue = xtrue)
 
+###
+AC_MSG_NOTICE([checking for existence of tiny c compiler library])
+
+AC_CHECK_HEADERS(libtcc.h,
+  AC_CHECK_LIB(tcc, tcc_preprocess_file, [
+    AC_DEFINE(HAVE_LIBTCC, 1, [Define this if tiny c compiler library is available])
+		  LIBTCC="-ltcc"
+		  build_tcc=true ],
+  AC_MSG_RESULT( [
+  ---------------------------------------------------------------------
+  Tiny C Compiler library not found.  For configuration of transformations
+  dynamic preprocessing of configuration rules will not be supported.
+  ---------------------------------------------------------------------
+  ])),
+  AC_MSG_RESULT( [
+  ---------------------------------------------------------------------
+  Tiny C Compiler headers not found.
+  ---------------------------------------------------------------------
+  ]))
+
+CPPFLAGS=$ac_save_CPPFLAGS
+LDFLAGS=$ac_save_LDFLAGS
+
+AC_SUBST(LIBTCC)
+
+AM_CONDITIONAL(BUILD_TCC, test x$build_tcc = xtrue)
 
 ###
 AC_MSG_NOTICE([checking for existence of watchdog])
@@ -310,7 +336,7 @@ AM_CONDITIONAL(BUILD_WATCHDOG, test x$build_watchdog = xtrue)
 ###
 AC_MSG_NOTICE([checking for existence of gumbo html parser library])
 
-AC_CHECK_HEADERS(src/gumbo.h,
+AC_CHECK_HEADERS(gumbo.h,
   AC_CHECK_LIB(gumbo, gumbo_parse_with_options, [
     AC_DEFINE(HAVE_LIBGUMBO, 1, [Define this if gumbo html parser library is available])
 	  GUMBO_CFLAGS="-I/usr/local/include/"
@@ -616,6 +642,7 @@ AC_ARG_WITH(pcap,
 AC_CHECK_HEADERS(pcap.h,
   AC_CHECK_LIB(pcap, pcap_version, [
     AC_DEFINE(HAVE_PCAP, 1, [Define this if PCAP is available])
+       build_pcap=true
     if test x$PCAP_DIR != x; then
 	  PCAP_CFLAGS="-I${PCAP_DIR}/include"
 	  PCAP_LDFLAGS="-I${PCAP_DIR}/lib -lpcap"
@@ -641,6 +668,8 @@ AC_SUBST(PCAP_LDFLAGS)
 
 CPPFLAGS=$ac_save_CPPFLAGS
 LDFLAGS=$ac_save_LDFLAGS
+
+AM_CONDITIONAL(BUILD_PCAP, test x$build_pcap = xtrue)
 
 #####
 
@@ -726,6 +755,7 @@ src/modules/corenova/Makefile
 src/modules/corenova/data/Makefile
 src/modules/corenova/data/db/Makefile
 src/modules/corenova/data/processor/Makefile
+src/modules/corenova/data/configuration/Makefile
 src/modules/corenova/data/parser/Makefile
 src/modules/corenova/net/Makefile
 src/modules/corenova/xform/Makefile
