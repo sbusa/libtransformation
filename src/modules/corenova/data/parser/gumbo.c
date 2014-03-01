@@ -3,7 +3,7 @@
 
 THIS = {
     .version = "0.1",
-    .author = "Suresh Kumar ",
+    .author = "Suresh Kumar/Hash Yuan",
     .description = "This module provides a set of gumbo html5 parser specific operations.",
     .implements = LIST("Gumbo"),
     .requires = LIST("corenova.data.array")
