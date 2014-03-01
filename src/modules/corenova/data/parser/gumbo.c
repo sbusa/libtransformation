@@ -32,53 +32,6 @@ static void _removeTag(gumboParser_t *gumboParser,int pos, int len)
 	gumboParser->buffer_lenth=strlen((gumboParser->buffer));	
 }
 
-// utility function to update the array with identified postions of a match.
-static void _updateMatchResult(gumboParser_t *gumboParser,int position,int length)
-{
-	tagReferences_t *t=calloc(1,sizeof(tagReferences_t));
-	t->offset= position;
-	t->length= length;
-	I(Array)->add(gumboParser->match_refs, t);	
-}
-
-// This function travel the gumboParser node tree and identify the match (A_TAG, href)
-// and update the position,length in to the arrary. Later this array will be used by remove function to remove the tag.
-// this function is a recursive function.
-static int _findattribute(gumboParser_t *gumboParser, const char *link)
-{
-	GumboNode *node=gumboParser->currentnode;
-	if (node->type != GUMBO_NODE_ELEMENT)
-	{
-		return 0; //failure case or complete traversal is done
-	}
-	GumboAttribute* attptr;
-	if (node->v.element.tag == GUMBO_TAG_A && (attptr = gumbo_get_attribute(&node->v.element.attributes, "href")))
-	{
-		if(strstr(attptr->value,link))
-		{		 
-			printf("findattribute found\n");
-			
-			int position= node->v.element.start_pos.offset;		    
-		    int endoffset= node->v.element.end_pos.offset + node->v.element.original_end_tag.length;		    
-			int length = (endoffset - position);
-			printf("position is (%d) length is (%d)\n",position,length);
-		   _updateMatchResult(gumboParser,position,length);		
-		}
-	  }
-	  else
-	  {
-		  GumboVector* children = &node->v.element.children;
-		  int i=0;
-		  for (i = 0; i < children->length; ++i)
-		  {
-			  gumboParser->currentnode=children->data[i];
-			  _findattribute(gumboParser,link);
-		  }
-	  }
-	  return 1;
-}
-
-
 static int  _getBufferLength(gumboParser_t *gumboParser)
 {
 	return (gumboParser->buffer_lenth);
@@ -89,35 +42,27 @@ static int  _getBufferLength(gumboParser_t *gumboParser)
 
 static gumboParser_t * newGumboParser(char *data, int len)
 {
-	DEBUGP(DDEBUG, "gumboParser", "newGumboParser");
-	//printf("inside newGumboParser\n");
-	gumboParser_t *gumboParser = (gumboParser_t *)calloc (1,sizeof (gumboParser_t));
-	if (gumboParser)
-	{
-        // Build gumbo tree out of the data supplied
-		gumboParser->buffer_lenth=len;
-		gumboParser->buffer=(char *)calloc(1,sizeof(char));
-		
-		if(gumboParser->buffer== NULL)
-		{			
-			return NULL;
-		}
-		//printf("%s\n",data);
-		gumboParser->buffer = data;
-				
-		//printf("buffer address %u = %u\n buffer pts to add value (%s) = (%s)\n", data, gumboParser->buffer, data, (gumboParser->buffer));
+
+	GumboOutput *output  = gumbo_parse_with_options(&kGumboDefaultOptions, data, len);
+	if (output) {
+		gumboParser_t *gumboParser = (gumboParser_t *)calloc (1,sizeof (gumboParser_t));
+		if (gumboParser)
+		{
+			gumboParser->output = output;
+			gumboParser->buffer_lenth = len;
+			gumboParser->buffer = data;
 			
-		//create a gumbo parser tree with the given buffer and length input.
-		gumboParser->output=gumbo_parse_with_options(&kGumboDefaultOptions,gumboParser->buffer,gumboParser->buffer_lenth);
+			//create a Array 
+			gumboParser->match_refs = I(Array)->new();
+			MUTEX_SETUP (gumboParser->lock);
 		
-		//assign the root node in to the current node
-		gumboParser->currentnode=gumboParser->output->root;
-		
-		//create a Array 
-		gumboParser->match_refs= I(Array)->new();
-		MUTEX_SETUP (gumboParser->lock);
-	}   
-	return gumboParser;
+			return gumboParser;
+		}
+	} else {
+			DEBUGP(DDEBUG, "gumboParser", "can't parse the data");	
+	}
+	
+	return NULL;
 }
 
 
@@ -145,43 +90,72 @@ static char* _getBuffer(gumboParser_t *gumboParser)
 
 
 
-//Search the TAG Name, and given attribute value text of the tag name and populates the offset,length in the array. 
-//Currently implemented only A TAG, and href attribute value. Eg:  In <A> tag,href="google.com"
-//input :  GumboParser structure,  TAG Name (ENUM), attribute, attribute value
+/*
+<li class="g"><h3 class="r"><a href="/url?q=http://gunsmagazine.com/&amp;sa=U&amp;ei=Y1MFU8eWHI_yoASln4C4DQ&amp;ved=0CGEQFjAN&amp;usg=AFQjCNF_1WudljQUtpi41o_2cBptfRD6Eg"><b>Guns</b> Magazine</a></h3><div class="s"><div class="kv" style="margin-bottom:2px"><cite><b>guns</b>magazine.com/</cite><div class="am-dwn-arw-container">&#8206;<div onclick="google.sham(this);" aria-expanded="false" aria-haspopup="true" tabindex="0" data-ved="0CGIQ7B0wDQ" style="display:inline"><span class="am-dwn-arw"></span></div><div class="am-dropdown-menu" role="menu" tabindex="-1" style="display:none"><ul><li class="am-dropdown-menu-item"><a class="am-dropdown-menu-item-text" href="/url?q=https://webcache.googleusercontent.com/search%3Fq%3Dcache:bex0aogegV0J:http://gunsmagazine.com/%252Bguns%26hl%3Den%26ct%3Dclnk&amp;sa=U&amp;ei=Y1MFU8eWHI_yoASln4C4DQ&amp;ved=0CGQQIDAN&amp;usg=AFQjCNEhsdusWFRpxMO2Ink6mLzGloEodQ">Cached</a></li><li class="am-dropdown-menu-item"><a class="am-dropdown-menu-item-text" href="/search?ie=UTF-8&amp;q=related:gunsmagazine.com/+guns&amp;tbo=1&amp;sa=X&amp;ei=Y1MFU8eWHI_yoASln4C4DQ&amp;ved=0CGUQHzAN">Similar</a></li></ul></div></div></div><span class="st"><b>Gun</b> rights advocates were quick to spot the ignorance that defined <b>...</b> he called br>
+ghost <b>guns</b>,his hysterical legislative response to plastic printing technology&nbsp;<b>...</b></span><br></div></li>
+*/
 
 //Eg calling method.
-//GumboParserTag mytag=GUMBOPARSER_TAG_A;
-//char *at="href";
-//char *link="google.com";  
-//I(GumboParser)->match(myparser,mytag,at,link);
+//GumboParserTag tagName = GUMBO_TAG_LI;
+//char *attr = "class";
+//char *value = "g";  
 
-static void matchTag(gumboParser_t *gumboParser,GumboParserTag tagName, char *attribute, char *text)
-{	
-	int pos=0,len=0;	
-	printf("_removeLinks link name is %s, tagname %d ATAG %d\n",text,tagName,GUMBO_TAG_A);
-	if((tagName==GUMBO_TAG_A) && (!strncmp(attribute,"href",4)))
-	{
-		printf("calling findattribute fun\n");
-		_findattribute(gumboParser,text);
-	}	
+static void matchTag(gumboParser_t *gumboParser, GumboNode *node, GumboTag tagName, char *attribute, char *value)
+{
+	
+	if (node->type == GUMBO_NODE_ELEMENT) {
+		GumboAttribute *attr = NULL;
+		
+		if (node->v.element.tag == tagName 
+			&& (attr = gumbo_get_attribute(&node->v.element.attributes, attribute)))
+		{
+			/* "g"/"g _o" */
+			int len = strlen(value);
+			if (!strncmp(attr->value, value, len) && (*(attr->value + len) == ' ' || strlen(attr->value) == len)) {
+				
+				tag_t *tag = calloc(1, sizeof(tag_t));
+				if (tag) {
+					tag->node = node;
+					tag->start = gumboParser->buffer + node->v.element.start_pos.offset;
+					tag->length = node->v.element.end_pos.offset + node->v.element.original_end_tag.length - node->v.element.start_pos.offset;
+					I(Array)->add(gumboParser->match_refs, tag);
+    	    	
+					DEBUGP(DDEBUG, "matchTag", "position: %p, length: %d", tag->start, tag->length);
+				}
+			} else {
+				DEBUGP(DDEBUG, "matchTag", "the value of class doesn't match \"%s\", \"%s\"", attr->value, value);
+			}
+		} else {
+			GumboVector *children = &node->v.element.children;
+			int i;
+
+			for (i = 0; i < children->length; ++i)
+			{
+				GumboNode *element = children->data[i];
+				
+				if (element->type == GUMBO_NODE_ELEMENT)
+			 	matchTag(gumboParser, element, tagName, attribute, value);
+			}
+		}
+	}
 }
 
 // This function is used for removing the matched tags,by match function call.
 static void removeTags(gumboParser_t *gumboParser)
 {
+#if 0
 	 int tmpcnt=I(Array)->count(gumboParser->match_refs);
 	   printf("Array count is %d\n",tmpcnt);
 	   int i=0;
 	   for(i=tmpcnt-1;i>=0;i--)
 	   {
-		   tagReferences_t *t=I(Array)->get(gumboParser->match_refs,i);
-		   printf("%d = %d\n",t->offset,t->length);		
-		   _removeTag(gumboParser,t->offset,t->length);		   
-		   free(t);
+		   tag_t *tag = I(Array)->get(gumboParser->match_refs,i);
+		   printf("%d = %d\n",tag->sart, tag->length);		
+		   _removeTag(gumboParser,tag ->start, tag->length);		   
+		   free(tag);
 	   }
-	   
+#endif
 }
-
 
 
 IMPLEMENT_INTERFACE(Gumbo) = {
