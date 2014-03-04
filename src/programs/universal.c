@@ -5,7 +5,7 @@ THIS = {
 	.version = "2.0",
 	.author = "Peter K. Lee <saint@corenova.com>",
 	.description = "This program will be the only binary you will ever need.",
-	.requires = LIST ("corenova.data.inifile",
+	.requires = LIST ("corenova.data.configuration.ini",
                       "corenova.data.processor",
                       "corenova.sys.debug",
                       "corenova.sys.getopts",
@@ -20,7 +20,7 @@ THIS = {
 };
 
 #include <corenova/sys/quark.h>
-#include <corenova/data/inifile.h>
+#include <corenova/data/configuration/ini.h>
 #include <corenova/data/processor.h>
 #include <corenova/sys/debug.h>
 #include <corenova/sys/getopts.h>
@@ -57,7 +57,7 @@ _signalIgnore (void) {
 static void
 _signalConfigReload (void) {
     if (config_file && processor) {
-        configuration_t *conf = I (IniFileParser)->parse (config_file);
+        configuration_t *conf = I (IniConfigParser)->parse (config_file);
         I (DataProcessor)->reload (processor,conf);
     }
 }
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
 
         
 		if (config_file) {
-            configuration_t *conf = I (IniFileParser)->parse (config_file);
+            configuration_t *conf = I (IniConfigParser)->parse (config_file);
 			if (conf) {
 				category_t *global = I (Configuration)->getCategory (conf,"Global");
 				if (global) {

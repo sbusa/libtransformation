@@ -4,11 +4,11 @@ THIS = {
 	.version = "2.0",
 	.author  = "Peter K. Lee <saint@corenova.com>",
 	.description = "This module represents a category of information.",
-	.implements = LIST ("IniFileParser"),
+	.implements = LIST ("IniConfigParser"),
 	.requires = LIST ("corenova.data.file","corenova.data.configuration")
 };
 
-#include <corenova/data/inifile.h>
+#include <corenova/data/configuration/ini.h>
 
 /*//////// INTERNAL CODE //////////////////////////////////////////*/
 
@@ -16,16 +16,16 @@ THIS = {
 /*//////// INTERFACE ROUTINES //////////////////////////////////////////*/
 
 static configuration_t *
-_parseFile (const char *filename) {
+_parseFile (file_t *file) {
+    /* internal lookup caching of the common interfaces being used */
 	I_TYPE(File)          *I_FILE     = I(File);
 	I_TYPE(Configuration) *I_CONFIG   = I(Configuration);
 	I_TYPE(Category)      *I_CATEGORY = I(Category);
 	I_TYPE(String)        *I_STRING   = I(String);
-	
-	configuration_t *conf = I_CONFIG->new(filename);
-	if (conf) {
-		file_t *file = I_FILE->new(filename,"ro");
-		if (file) {
+
+    if (file) {
+        configuration_t *conf = I_CONFIG->new(file->name);
+        if (conf) {
 			char *line = NULL, *ptr = NULL;
 			int32_t lineNumber = 0;
 			category_t *category = I_CONFIG->addCategory(conf,"global");
@@ -63,19 +63,24 @@ _parseFile (const char *filename) {
 					}
 					*sep = '\0';
 					I_CATEGORY->setParameter(category,I_STRING->trim(string),I_STRING->trim(sep+1));
-				}
-			}
-			I (File)->destroy(&file);
-		} else {
-			DEBUGP(DERR,"_parseFile","unable to retrieve file handle for %s",filename);
-			I_CONFIG->destroy(&conf);
-			return NULL;
-		}
-	} else {
-		DEBUGP(DERR,"_parseFile","unable to create an instance of configuration");
-	}
-	return conf;
+                }
+            }
+            return conf;
+        } else {
+            DEBUGP (DERR,"_praseFile","unable to create an instance of configuration object");
+        }
+    }
+	return NULL;
 }		
+
+/* a convenience function of returning the configuration based on a filename */
+static configuration_t *
+_parse (const char *filename) {
+    file_t *file = I (File)->new (filename,"ro");
+    configuration_t *conf = _parseFile (file);
+    I (File)->destroy (&file);
+    return conf;
+}
 
 static boolean_t
 _writeFile (const char *filename, configuration_t *conf) {
@@ -99,7 +104,8 @@ _writeFile (const char *filename, configuration_t *conf) {
 	return ret;
 }
 
-IMPLEMENT_INTERFACE (IniFileParser) = {
-	.parse   = _parseFile,
-	.write   = _writeFile
+IMPLEMENT_INTERFACE (IniConfigParser) = {
+    .parse         = _parse,
+    .parseByFile   = _parseFile,
+	.write         = _writeFile
 };

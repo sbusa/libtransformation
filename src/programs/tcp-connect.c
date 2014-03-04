@@ -5,18 +5,15 @@ THIS = {
 	.version = "1.0",
 	.author = "Peter K. Lee <saint@corenova.com>",
 	.description = "This program lets you make tcp connections.",
-	.requires = LIST ("corenova.data.inifile",
-					  "corenova.net.tcp",
+	.requires = LIST ("corenova.net.tcp",
 					  "corenova.sys.getopts"),
 	.options = {
-		OPTION ("config_file", NULL, "name of configuration ini file"),
 		OPTION ("host", NULL, "hostname to connect to"),
 		OPTION ("port", NULL, "port to connect to"),
 		OPTION_NULL
 	}
 };
 
-#include <corenova/data/inifile.h>
 #include <corenova/net/tcp.h>
 #include <corenova/sys/getopts.h>
 
