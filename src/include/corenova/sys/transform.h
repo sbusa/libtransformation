@@ -71,7 +71,7 @@ DEFINE_INTERFACE (TransformToken) {
 #define TRANSFORM_WITH(INSTANCE)                                        \
     xform->instance = INSTANCE;                                         \
     if (!xform->instance) {                                             \
-        DEBUGP (DERR,"newSysLogTransformation",                         \
+        DEBUGP (DERR,"Transformation",                         \
                 "unable to initialize the instance for (%s -> %s)", from, to); \
         free (xform);                                                   \
         return NULL;                                                    \
