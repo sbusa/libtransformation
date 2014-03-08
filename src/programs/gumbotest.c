@@ -1,5 +1,4 @@
 #include <corenova/source-stub.h>
-#include <corenova/data/parser/gumboparser.h>
 
 THIS = {
     .name = "A dummy Tester",
@@ -10,6 +9,7 @@ THIS = {
 };
 
 #include <stdio.h>
+#include <corenova/data/parser/gumboparser.h>
 #include <corenova/sys/getopts.h>
 #include <corenova/sys/debug.h>
 #include <corenova/data/stree.h>
@@ -42,28 +42,28 @@ int main(int argc, char **argv, char **envp)
   read_file(fp, &input, &input_length);
   printf("length %d file contents are \n%s\n",input_length,input);
 
-  gumboParser_t *myparser =I(GumboParser)->new(input,input_length);
+  gumboParser_t *myparser =I(Gumbo)->new(input,input_length);
   
   printf("successfully created the new gumbo parser\n");
   
   GumboParserTag mytag=GUMBOPARSER_TAG_A;
   char *at="href";
   char *link="google.com";  
-  I(GumboParser)->match(myparser,mytag,at,link);
-  I(GumboParser)->remove(myparser);
+  I(Gumbo)->match(myparser,mytag,at,link);
+  I(Gumbo)->remove(myparser);
   
   
   
   char *output=NULL;
   printf("output address %u\n",output);
-  output=I(GumboParser)->toString(myparser);
+  output=I(Gumbo)->toString(myparser);
   
   
   printf("output address %u\n",output);
     if(output)
     printf("toString output: %s\n",output);
     
-    I(GumboParser)->destroy(myparser);
+    I(Gumbo)->destroy(myparser);
       printf("program exits\n");
     
     

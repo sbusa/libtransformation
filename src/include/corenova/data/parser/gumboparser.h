@@ -27,11 +27,12 @@ typedef struct
 
 DEFINE_INTERFACE (Gumbo)
 {
-	gumboParser_t*  (*new)     (char *, int length);	
-	void      		(*destroy) (gumboParser_t *);	
-	char *    		(*toString) (gumboParser_t *);
-	void  	   		(*match)(gumboParser_t *gumboParser, GumboNode *node, GumboTag tagName, char *attribute, char *text);
-	void       		(*remove)(gumboParser_t *gumboParser);    
+	gumboParser_t*  (*new)          (char *buf, int size);	
+	void      		(*destroy)      (gumboParser_t *);	
+	char *    		(*toString)     (gumboParser_t *);
+	void  	   		(*match)        (gumboParser_t *, GumboNode *node, GumboTag tagName, char *attribute, char *text);
+	void       		(*remove)       (gumboParser_t *);    
+    char *          (*getAttrValue) (GumboNode *, const char *attrname);
 };
 
 #endif

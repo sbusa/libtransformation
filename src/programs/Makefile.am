@@ -29,10 +29,14 @@ watchdog_LDADD      = ../library/libNovaLoader.la
 
 endif
 
-bin_PROGRAMS += gumbotest
-gumbotest_SOURCES = gumbotest.c
-gumbotest_LDADD   = ../library/libNovaLoader.la
+if BUILD_GUMBO
 
+# this test program broken currently
+# bin_PROGRAMS += gumbotest
+# gumbotest_SOURCES = gumbotest.c
+# gumbotest_LDADD   = ../library/libNovaLoader.la
+
+endif
 
 bin_PROGRAMS += dummy
 dummy_SOURCES = dummy.c

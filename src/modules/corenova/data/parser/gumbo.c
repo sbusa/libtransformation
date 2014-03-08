@@ -28,7 +28,7 @@ static void _removeTag(gumboParser_t *gumboParser,int pos, int len)
 	
 	strncpy((gumboParser->buffer+pos),(gumboParser->buffer+pos+len),shifting_length);
 	*(gumboParser->buffer+pos+shifting_length)='\0';
-	printf("new buffer len %d",strlen(gumboParser->buffer));
+	printf("new buffer len %d",(int) strlen(gumboParser->buffer));
 	gumboParser->buffer_lenth=strlen((gumboParser->buffer));	
 }
 
@@ -40,19 +40,19 @@ static int  _getBufferLength(gumboParser_t *gumboParser)
 
 //Interface functions
 
-static gumboParser_t * newGumboParser(char *data, int len)
+static gumboParser_t * newGumboParser(char *data, int size)
 {
 
-	GumboOutput *output  = gumbo_parse_with_options(&kGumboDefaultOptions, data, len);
+	GumboOutput *output  = gumbo_parse_with_options(&kGumboDefaultOptions, data, size);
 	if (output) {
 		gumboParser_t *gumboParser = (gumboParser_t *)calloc (1,sizeof (gumboParser_t));
 		if (gumboParser)
 		{
 			gumboParser->output = output;
-			gumboParser->buffer_lenth = len;
+			gumboParser->buffer_lenth = size;
 			gumboParser->buffer = data;
 			
-			//create a Array 
+			//create an Array 
 			gumboParser->match_refs = I(Array)->new();
 			MUTEX_SETUP (gumboParser->lock);
 		
@@ -68,7 +68,7 @@ static gumboParser_t * newGumboParser(char *data, int len)
 
 static void destroyGumboParser(gumboParser_t *gumboParser)
 {
-	printf("inside destroygumboparser\n");
+	DEBUGP (DDEBUG,"destroyGumboParser","inside destroygumboparser");
 	if (gumboParser)
 	{
 		gumbo_destroy_output(&kGumboDefaultOptions, gumboParser->output);
@@ -78,6 +78,11 @@ static void destroyGumboParser(gumboParser_t *gumboParser)
 		}
 		gumboParser->buffer_lenth=0;
 		//Todo : array to be destroyed.
+
+        if (gumboParser->match_refs) {
+            I (Array)->destroy (&gumboParser->match_refs,free);
+        }
+        
 		MUTEX_CLEANUP (gumboParser->lock);
 	}
 }
@@ -100,45 +105,82 @@ ghost <b>guns</b>,his hysterical legislative response to plastic printing techno
 //char *attr = "class";
 //char *value = "g";  
 
-static void matchTag(gumboParser_t *gumboParser, GumboNode *node, GumboTag tagName, char *attribute, char *value)
+static void
+matchTag(gumboParser_t *gumboParser, GumboNode *node, GumboTag tagName, char *attribute, char *value)
 {
-	
-	if (node->type == GUMBO_NODE_ELEMENT) {
-		GumboAttribute *attr = NULL;
-		
-		if (node->v.element.tag == tagName 
-			&& (attr = gumbo_get_attribute(&node->v.element.attributes, attribute)))
-		{
-			/* "g"/"g _o" */
-			int len = strlen(value);
-			if (!strncmp(attr->value, value, len) && (*(attr->value + len) == ' ' || strlen(attr->value) == len)) {
-				
-				tag_t *tag = calloc(1, sizeof(tag_t));
-				if (tag) {
+	if (gumboParser && node && node->type == GUMBO_NODE_ELEMENT && tagName) {
+
+		if (node->v.element.tag == tagName) {
+            boolean_t foundMatch = FALSE;
+            
+
+            if (attribute) {    /* specified attribute to match! */
+                GumboAttribute *attr = NULL;
+                if ((attr = gumbo_get_attribute(&node->v.element.attributes, attribute))) {
+
+                    if (value) { /* specified value to match! */
+
+                        /* "g"/"g _o" */
+                        int len = strlen(value);
+                        if (!strncmp(attr->value, value, len) && (*(attr->value + len) == ' ' || strlen(attr->value) == len)) {
+                            foundMatch = TRUE;
+                        }
+                        
+                    } else {
+                        foundMatch = TRUE;
+                    }
+                }
+            } else {
+                foundMatch = TRUE;
+            }
+
+            if (foundMatch) {
+                tag_t *tag = calloc (1, sizeof (tag_t));
+                if (tag) {
 					tag->node = node;
 					tag->start = gumboParser->buffer + node->v.element.start_pos.offset;
 					tag->length = node->v.element.end_pos.offset + node->v.element.original_end_tag.length - node->v.element.start_pos.offset;
-					I(Array)->add(gumboParser->match_refs, tag);
+
+                    /* we embed the match_refs array here so that we can call gumboParser without any array at start */
+                    if (!gumboParser->match_refs) {
+                        gumboParser->match_refs = I (Array)->new ();
+                    }
+
+                    if (gumboParser->match_refs) 
+                        I(Array)->add(gumboParser->match_refs, tag);
     	    	
 					DEBUGP(DDEBUG, "matchTag", "position: %p, length: %d", tag->start, tag->length);
-				}
-			} else {
-				DEBUGP(DDEBUG, "matchTag", "the value of class doesn't match \"%s\", \"%s\"", attr->value, value);
-			}
-		} else {
-			GumboVector *children = &node->v.element.children;
-			int i;
+                }
+                return;
+            }
+        }
 
-			for (i = 0; i < children->length; ++i)
-			{
-				GumboNode *element = children->data[i];
+        // default fallback is to look at the node to see if there are children and recurse to it
+        GumboVector *children = &node->v.element.children;
+        if (children && children->length) {
+            int i;
+            for (i = 0; i < children->length; ++i)
+            {
+                GumboNode *element = children->data[i];
 				
-				if (element->type == GUMBO_NODE_ELEMENT)
-			 	matchTag(gumboParser, element, tagName, attribute, value);
-			}
-		}
+                if (element->type == GUMBO_NODE_ELEMENT) {
+                    matchTag(gumboParser, element, tagName, attribute, value);
+                }
+            }
+        }
 	}
 }
+
+static char *
+getAttributeValueFromNode(GumboNode *node, const char *attribute) {
+    char *val = NULL;
+    if (node && node->type == GUMBO_NODE_ELEMENT && attribute) {
+        GumboAttribute *attr = gumbo_get_attribute(&node->v.element.attributes, attribute);
+        if (attr)
+            val = attr->value;
+    }
+    return val;
+} 
 
 // This function is used for removing the matched tags,by match function call.
 static void removeTags(gumboParser_t *gumboParser)
@@ -151,7 +193,7 @@ static void removeTags(gumboParser_t *gumboParser)
 	   {
 		   tag_t *tag = I(Array)->get(gumboParser->match_refs,i);
 		   printf("%d = %d\n",tag->sart, tag->length);		
-		   _removeTag(gumboParser,tag ->start, tag->length);		   
+		   _removeTag(gumboParser,tag->start, tag->length);		   
 		   free(tag);
 	   }
 #endif
@@ -163,5 +205,6 @@ IMPLEMENT_INTERFACE(Gumbo) = {
     .toString = _getBuffer,
     .destroy = destroyGumboParser,
     .match = matchTag,
-    .remove = removeTags
+    .remove = removeTags,
+    .getAttrValue = getAttributeValueFromNode
 };
