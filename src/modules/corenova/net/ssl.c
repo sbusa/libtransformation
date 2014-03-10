@@ -634,7 +634,7 @@ sslWrite (ssl_t *ssl, char *buf, uint32_t size) {
                   usleep (10000);
                   goto try_record_write;
               case SSL_SHUTDOWN:
-                  return 0;
+                  return -1;
 			}
 		} else {
 		
@@ -652,7 +652,7 @@ sslWrite (ssl_t *ssl, char *buf, uint32_t size) {
                   goto try_write;
 				
               case SSL_SHUTDOWN:
-                  return 0;
+                  return -1;
 			}
 			/* should check returnValue or assume returnValue == toWrite here? */
 			write += toWrite;
