@@ -31,8 +31,9 @@ datamoduleinclude_HEADERS =						\
 	corenova/data/string.h
 
 gumbomoduleincludedir = $(includedir)/corenova/data/parser
-gumbomoduleinclude_HEADERS =                                               \
-	corenova/data/parser/gumboparser.h                                       
+gumbomoduleinclude_HEADERS =					\
+	corenova/data/parser/gumboparser.h			\
+	corenova/data/parser/jsonc.h
 
 dbmoduleincludedir = $(includedir)/corenova/data/db
 dbmoduleinclude_HEADERS =						\
