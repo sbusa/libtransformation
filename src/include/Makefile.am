@@ -35,6 +35,10 @@ gumbomoduleinclude_HEADERS =					\
 	corenova/data/parser/gumboparser.h			\
 	corenova/data/parser/jsonc.h
 
+jsoncmoduleincludedir = $(includedir)/corenova/data/parser
+jsoncmoduleinclude_HEADERS =				\
+	corenova/data/parser/jsonc.h
+
 dbmoduleincludedir = $(includedir)/corenova/data/db
 dbmoduleinclude_HEADERS =						\
 	corenova/data/db/mysql.h					\
