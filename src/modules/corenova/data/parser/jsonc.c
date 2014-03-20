@@ -54,7 +54,7 @@ static int matchtag(jsonStringParser_t *jsonStringParser, char *tagName, char *a
 		if(t1)
 		{
 			t1 += tag_start_len;
-			char *t2 = strstr(t1, "\\\\x22\\\\x3e");
+			char *t2 = strstr(t1, "\\\\x22");
 			if (t2) {
 				*t2 ='\0';
 				

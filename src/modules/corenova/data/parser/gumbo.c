@@ -151,7 +151,6 @@ matchTag(gumboParser_t *gumboParser, GumboNode *node, GumboTag tagName, char *at
     	    	
 					DEBUGP(DDEBUG, "matchTag", "position: %p, length: %d", tag->start, tag->length);
                 }
-                return;
             }
         }
 
