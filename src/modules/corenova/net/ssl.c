@@ -4,11 +4,15 @@ THIS = {
 	.version     = "2.0",
 	.author      = "Peter K. Lee <saint@corenova.com>",
 	.description = "This module enables SSL-oriented network operations.",
-	.implements  = LIST ("SSLConnector"),
-	.requires    = LIST ("corenova.net.tcp")
+	.implements  = LIST ("SSLConnector", "SSLCertCache"),
+	.requires    = LIST ("corenova.net.tcp",
+                             "corenova.data.string",
+                             "corenova.data.cache")
 };
 
 #include <corenova/net/ssl.h>
+#include <corenova/data/string.h>
+#include <corenova/data/cache.h>
 
 /*//////// MODULE CODE //////////////////////////////////////////*/
 
@@ -19,6 +23,7 @@ THIS = {
 /***** SSL Thread-Safe callback setup  *****/
 
 static MUTEX_TYPE *mutexList = NULL;
+static cache_t * ssl_cache;
 
 static void _sslLockingFunction (int32_t mode, int32_t n, const char *file, int32_t line) {
 	if (mode & CRYPTO_LOCK) {
@@ -66,6 +71,21 @@ static int32_t _sslThreadCleanup(void)
 	return 0;
 }
 
+static inline int ssl_cert_entry_cmp (void *key, void *data) {
+	char *A = (char *)key;
+	char *B = ((ssl_cache_entry_t *)data)->key;
+
+	return I (String)->equal (A, B);
+}
+
+static inline void ssl_cert_entry_del (void *data) {
+	ssl_cache_entry_t *entry = data;
+	if (entry) {
+		X509_free(entry->certificate);
+		free (entry);
+	}
+}
+
 void CONSTRUCTOR mySetup ()
 {
 //	DEBUGP(DINFO,"constructor"," - making SSL thread-safe - ");
@@ -92,6 +112,47 @@ static int32_t password_cb(char *buf, int32_t len, int32_t rwflag, void *userdat
 	strncpy(buf,PrivateKeyPassword,len);
 	return (strlen(buf));
 }
+
+
+static cache_t *
+newSslCertCache (uint32_t max_entries, uint32_t max_memory) {
+	return I (Cache)->new (ssl_cert_entry_cmp, ssl_cert_entry_del, max_entries, max_memory);
+}
+
+static ssl_cache_entry_t *
+putSslCertCacheEntry (const char *cname, X509 *certificate) {
+	if (cname && certificate) {
+		ssl_cache_entry_t *entry = (ssl_cache_entry_t *) calloc(1, sizeof(ssl_cache_entry_t));
+		if (entry) {
+			entry->key = I (String)->copy (cname);
+			entry->certificate = certificate;
+			I (Cache)->put (ssl_cache, (void *)entry->key, entry, sizeof(ssl_cache_entry_t) + sizeof(cname));
+			return entry;
+		}
+	}
+	return NULL;
+}
+
+static ssl_cache_entry_t *
+getSslCertCacheEntry (char *cname) {
+	if (cname && ssl_cache) {
+		ssl_cache_entry_t *entry = (ssl_cache_entry_t *)I (Cache)->get (ssl_cache, cname);
+		return entry;
+	}
+	return NULL;
+}
+
+static void
+destroySslCertCache (cache_t **ptr) {
+	I (Cache)->destroy (ptr);
+}
+
+IMPLEMENT_INTERFACE(SSLCertCache) = {
+	.new =	newSslCertCache,
+	.put = 	putSslCertCacheEntry,
+	.get = 	getSslCertCacheEntry,
+	.destroy = destroySslCertCache
+};
 
 /** returns: CN_OK on success, else CN_ERR **/
 static boolean_t
@@ -144,9 +205,7 @@ static int32_t _checkSSLError (SSL *ssl, int32_t code) {
           return SSL_SHUTDOWN;
 
       case SSL_ERROR_SYSCALL:
-          if (errno == EINTR && !SystemExit) return SSL_TRY_AGAIN;
-          /* 
-           * This case is not error. When ERR_get_error() does not report any error return
+           /* This case is not error. When ERR_get_error() does not report any error return
            * with what we have.
            */  
           if (!ERR_get_error() && !errno) {

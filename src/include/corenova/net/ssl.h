@@ -2,6 +2,7 @@
 #define __ssl_H__
 
 #include <corenova/interface.h>
+#include <corenova/data/cache.h>
 
 #include <corenova/net/tcp.h>
 
@@ -92,5 +93,17 @@ DEFINE_INTERFACE (SSLConnector) {
 	char      *(*getPeerCname) (ssl_t *);
 	void       (*useRecords) (ssl_t *, boolean_t flag);
 };
+
+typedef struct {
+	char *key;
+	X509 *certificate;
+} ssl_cache_entry_t;
+
+DEFINE_INTERFACE (SSLCertCache) {
+    cache_t		*(*new)		(uint32_t max_entries, uint32_t max_memory);
+    ssl_cache_entry_t 	*(*put)		(cache_t *, const char *cname, X509 *certificate);
+    ssl_cache_entry_t	*(*get)		(const char *cname);
+    void		*(*destroy)	(cache_t **);
+	
 
 #endif 
