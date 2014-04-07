@@ -94,13 +94,11 @@ void CONSTRUCTOR mySetup ()
 //	actions_to_seed_PRNG ();
 	
 	_sslThreadSetup ();
-	ssl_cache = I (SSLCertCache)->new (NULL, NULL);
 }
 
 void DESTRUCTOR myDestroy ()
 {
 	_sslThreadCleanup ();
-	I (SSLCertCache)->destroy(&ssl_cache);
 }
 
 /***** Helper routines *****/
@@ -280,6 +278,9 @@ static void _destroyContext (ssl_context_t **ctx) {
 		SSL_CTX_free (*ctx);
 		*ctx = NULL;
 	}
+	if (ssl_cache) {
+		I (SSLCertCache)->destroy (&ssl_cache);
+	}
 }
 
 /**
@@ -301,6 +302,11 @@ _newContext (ssl_mode_t mode,
         boolean_t clientAuth = 0;
 	ssl_context_t *ctx = NULL;
 	SSL_METHOD *method = NULL;
+
+	if (!ssl_cache) {
+		ssl_cache = I (SSLCertCache)->new (NULL, NULL);
+	}
+
 	switch (mode) {
       case SSL_CLIENT:
           method = SSLv23_client_method ();
