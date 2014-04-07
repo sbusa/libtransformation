@@ -101,9 +101,9 @@ typedef struct {
 
 DEFINE_INTERFACE (SSLCertCache) {
     cache_t		*(*new)		(uint32_t max_entries, uint32_t max_memory);
-    ssl_cache_entry_t 	*(*put)		(cache_t *, const char *cname, X509 *certificate);
+    ssl_cache_entry_t 	*(*put)		(const char *cname, X509 *certificate);
     ssl_cache_entry_t	*(*get)		(const char *cname);
     void		*(*destroy)	(cache_t **);
-	
+};	
 
 #endif 

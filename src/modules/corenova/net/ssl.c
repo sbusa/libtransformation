@@ -94,11 +94,13 @@ void CONSTRUCTOR mySetup ()
 //	actions_to_seed_PRNG ();
 	
 	_sslThreadSetup ();
+	ssl_cache = I (SSLCertCache)->new (NULL, NULL);
 }
 
 void DESTRUCTOR myDestroy ()
 {
 	_sslThreadCleanup ();
+	I (SSLCertCache)->destroy(&ssl_cache);
 }
 
 /***** Helper routines *****/
