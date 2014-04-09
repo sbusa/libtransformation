@@ -23,7 +23,7 @@ THIS = {
 /***** SSL Thread-Safe callback setup  *****/
 
 static MUTEX_TYPE *mutexList = NULL;
-static cache_t * ssl_cache;
+static cache_t * ssl_cache = NULL;
 
 static void _sslLockingFunction (int32_t mode, int32_t n, const char *file, int32_t line) {
 	if (mode & CRYPTO_LOCK) {
@@ -74,8 +74,13 @@ static int32_t _sslThreadCleanup(void)
 static inline int ssl_cert_entry_cmp (void *key, void *data) {
 	char *A = (char *)key;
 	char *B = ((ssl_cache_entry_t *)data)->key;
-
-	return I (String)->equal (A, B);
+	DEBUGP (DINFO, "ssl_cert_entry_cmp", "key %s, data %s", key, ((ssl_cache_entry_t *)data)->key)
+	if (I (String)->equal (A, B)) {
+		DEBUGP (DINFO, "ssl_cert_entry_cmp", "matched key and entry");
+		return 0;
+	} else {
+		return 1;
+	}
 }
 
 static inline void ssl_cert_entry_del (void *data) {
@@ -116,11 +121,16 @@ static int32_t password_cb(char *buf, int32_t len, int32_t rwflag, void *userdat
 
 static cache_t *
 newSslCertCache (uint32_t max_entries, uint32_t max_memory) {
+	DEBUGP (DINFO, "newSSLCertCache", "Creating a new SSL Cache");
 	return I (Cache)->new (ssl_cert_entry_cmp, ssl_cert_entry_del, max_entries, max_memory);
 }
 
 static ssl_cache_entry_t *
 putSslCertCacheEntry (const char *cname, X509 *certificate) {
+	if (!ssl_cache) {
+		DEBUGP (DINFO, "putSslCertCacheEntry", "no ssl_cache, create it now");
+		ssl_cache = newSslCertCache(0, 0);
+	}
 	if (cname && certificate) {
 		ssl_cache_entry_t *entry = (ssl_cache_entry_t *) calloc(1, sizeof(ssl_cache_entry_t));
 		if (entry) {
@@ -135,15 +145,23 @@ putSslCertCacheEntry (const char *cname, X509 *certificate) {
 
 static ssl_cache_entry_t *
 getSslCertCacheEntry (char *cname) {
+	DEBUGP (DINFO, "getSslCertCacheEntry", "fetching certificate");
 	if (cname && ssl_cache) {
 		ssl_cache_entry_t *entry = (ssl_cache_entry_t *)I (Cache)->get (ssl_cache, cname);
-		return entry;
+		if (entry) {
+			DEBUGP (DINFO, "getSslCertCacheEntry", "Found matching entry with cname %s", entry->key);
+			return entry;
+		}
+	} else {
+		DEBUGP (DINFO, "getSslCertCacheEntry", "ssl_cache in null");
 	}
+	DEBUGP (DINFO, "getSslCertCacheEntry", "failed fetching certificate");
 	return NULL;
 }
 
 static void
 destroySslCertCache (cache_t **ptr) {
+	 DEBUGP (DINFO, "destroySslCertCache", "Destroying the SSL cache");
 	I (Cache)->destroy (ptr);
 }
 
@@ -303,9 +321,6 @@ _newContext (ssl_mode_t mode,
 	ssl_context_t *ctx = NULL;
 	SSL_METHOD *method = NULL;
 
-	if (!ssl_cache) {
-		ssl_cache = I (SSLCertCache)->new (NULL, NULL);
-	}
 
 	switch (mode) {
       case SSL_CLIENT:
