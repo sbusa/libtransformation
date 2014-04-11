@@ -1,3 +1,32 @@
+# http://www.gnu.org/software/automake
+
+Makefile.in
+
+# http://www.gnu.org/software/autoconf
+
+/autom4te.cache
+/aclocal.m4
+/compile
+/configure
+/depcomp
+/install-sh
+/missing
+/config.log
+/config.status
+/config/
+/libtool
+
+*~
+.deps/
+Makefile
+
+/libltdl
+*.m4
+
+README
+
+/etc/rc-scripts
+
 # Compiled Object files
 *.slo
 *.lo
@@ -10,3 +39,5 @@
 *.lai
 *.la
 *.a
+
+*.pc

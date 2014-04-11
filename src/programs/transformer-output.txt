@@ -1,0 +1,165 @@
+
+
+STAGE 1: AFTER XFORM CONFIG PARSER (using test/uproxy.xform)
+------------------------------------------------------------------------------
+[global]
+
+[transform:module -> transform:engine]
+module = corenova.data.processor.transformation
+
+[transform:module -> transform:engine]
+module = corenova.net.server
+
+[transform:module -> transform:engine]
+module = corenova.net.filter
+
+[transform:module -> transform:engine]
+module = corenova.data.pipe
+
+[transform:module -> transform:engine]
+module = cpn.net.analysis
+
+[transform:module -> transform:engine]
+module = cpn.net.proxy
+
+[transform:feeder -> net:server -> net:transport -> (connection)]
+listen_port = 12345
+
+[(connection) -> transform:feeder]
+
+[(connection) -> net:filter:access -> (access_filter)]
+filter_access = etc/example/filter.access
+
+[(access_filter) -> net:proxy:registration]
+
+[net:proxy:registration -> net:proxy:session]
+
+[net:proxy:session -> net:analysis::*]
+protocol_analysis_modules = "cpn.net.analysis.ssl,cpn.net.analysis.http,cpn.net.analysis.smtp,cpn.net.analysis.pop3"
+protocol_analysis_timeout = 10000
+
+[transaction:message::sync -> transform:back -> net:proxy:session]
+
+[net:analysis::* -> net:proxy:session::unknown -> data:pipe:stream -> (stream_flush)]
+
+[(stream_flush) -> data:pipe:stream@flush -> transform:back -> net:proxy:session]
+
+[transaction:message::* -> (pass_transaction)]
+
+[(hijack_transaction) -> transaction:message@hijack->transform:back->net:proxy:transaction::*]
+
+[(pass_transaction) -> transaction:message@pass->transform:back -> net:proxy:transaction::*]
+
+[(access_filter)->data:log:message->(log)]
+
+[(protocol_filter)->data:log:message->(log)]
+
+[(filter_http)->data:log:message->(log)]
+
+[(filter_smtp)->data:log:message->(log)]
+
+[(log)->data:log:file]
+logfile = /var/log/access.log
+
+
+
+STAGE 2: AFTER XFORM ENGINE PROCESSING (using test/uproxy.xform)
+------------------------------------------------------------------------------
+[01] transform:module {real} -> transform:engine {real} -> END
+module = corenova.data.processor.transformation
+[02] transform:module {real} -> transform:engine {real} -> END
+module = corenova.net.server
+[03] transform:module {real} -> transform:engine {real} -> END
+module = corenova.net.filter
+[04] transform:module {real} -> transform:engine {real} -> END
+module = corenova.data.pipe
+[05] transform:module {real} -> transform:engine {real} -> END
+module = cpn.net.analysis
+[06] transform:module {real} -> transform:engine {real} -> END
+module = cpn.net.proxy
+[07] transform:feeder {real} -> net:server {real} -> net:transport {real} -> (connection) {pseudo} -> END
+listen_port = 12345
+[08] (connection) {pseudo} -> transform:feeder {real} -> END
+[09] (connection) {pseudo} -> net:filter:access {real} -> (access_filter) {pseudo} -> END
+filter_access = etc/example/filter.access
+[10] (access_filter) {pseudo} -> net:proxy:registration {real} -> END
+[11] net:proxy:registration {real} -> net:proxy:session {real} -> END
+[12] net:proxy:session {real} -> net:analysis::* {real} -> END
+protocol_analysis_modules = "cpn.net.analysis.ssl,cpn.net.analysis.http,cpn.net.analysis.smtp,cpn.net.analysis.pop3"
+protocol_analysis_timeout = 10000
+[13] transaction:message::sync {real} -> transform:back {real} -> net:proxy:session {real} -> END
+[14] net:analysis::* {real} -> net:proxy:session::unknown {real} -> data:pipe:stream {real} -> (stream_flush) {pseudo} -> END
+[15] (stream_flush) {pseudo} -> data:pipe:stream@flush {real} -> transform:back {real} -> net:proxy:session {real} -> END
+[16] transaction:message::* {real} -> (pass_transaction) {pseudo} -> END
+[17] (hijack_transaction) {pseudo} -> transaction:message@hijack {real} -> transform:back {real} -> net:proxy:transaction::* {real} -> END
+[18] (pass_transaction) {pseudo} -> transaction:message@pass {real} -> transform:back {real} -> net:proxy:transaction::* {real} -> END
+[19] (access_filter) {pseudo} -> data:log:message {real} -> (log) {pseudo} -> END
+[20] (protocol_filter) {pseudo} -> data:log:message {real} -> (log) {pseudo} -> END
+[21] (filter_http) {pseudo} -> data:log:message {real} -> (log) {pseudo} -> END
+[22] (filter_smtp) {pseudo} -> data:log:message {real} -> (log) {pseudo} -> END
+[23] (log) {pseudo} -> data:log:file {real} -> END
+logfile = /var/log/access.log
+
+STAGE 3: AFTER XFORM SYMBOL EXPANSION PROCESSING (using test/uproxy.xform)
+------------------------------------------------------------------------------
+// ruleset
+[01] transform:module {real} -> transform:engine {real} -> END
+module = corenova.data.processor.transformation
+
+// ruleset
+[01] transform:module {real} -> transform:engine {real} -> END
+module = corenova.net.server
+
+// ruleset
+[01] transform:module {real} -> transform:engine {real} -> END
+module = corenova.net.filter
+
+// ruleset
+[01] transform:module {real} -> transform:engine {real} -> END
+module = corenova.data.pipe
+
+// ruleset
+[01] transform:module {real} -> transform:engine {real} -> END
+module = cpn.net.analysis
+
+// ruleset
+[01] transform:module {real} -> transform:engine {real} -> END
+module = cpn.net.proxy
+
+// ruleset
+[01] transform:feeder {real} -> net:server {real} -> net:transport {real} -> transform:feeder {real} -> END
+listen_port = 12345
+[02] transform:feeder {real} -> net:server {real} -> net:transport {real} -> net:filter:access {real} -> net:proxy:registration {real} -> END
+filter_access = etc/example/filter.access
+listen_port = 12345
+[03] transform:feeder {real} -> net:server {real} -> net:transport {real} -> net:filter:access {real} -> data:log:message {real} -> data:log:file {real} -> END
+filter_access = etc/example/filter.access
+listen_port = 12345
+logfile = /var/log/access.log
+
+// ruleset
+[01] net:proxy:registration {real} -> net:proxy:session {real} -> END
+
+// ruleset
+[01] net:proxy:session {real} -> net:analysis::* {real} -> END
+protocol_analysis_modules = "cpn.net.analysis.ssl,cpn.net.analysis.http,cpn.net.analysis.smtp,cpn.net.analysis.pop3"
+protocol_analysis_timeout = 10000
+
+// ruleset
+[01] transaction:message::sync {real} -> transform:back {real} -> net:proxy:session {real} -> END
+
+// ruleset
+[01] net:analysis::* {real} -> net:proxy:session::unknown {real} -> data:pipe:stream {real} -> data:pipe:stream@flush {real} -> transform:back {real} -> net:proxy:session {real} -> END
+
+// ruleset
+[01] transaction:message::* {real} -> transaction:message@pass {real} -> transform:back {real} -> net:proxy:transaction::* {real} -> END
+
+
+STAGE 4: FINAL XFORM MATRIX EXECUTION PLAN (using test/uproxy.xform)
+------------------------------------------------------------------------------
+// matrix execution set #0
+[00] (transform:feeder -> net:server) (net:server -> net:server::tcp) (net:server::tcp -> net:transport) (net:transport -> transform:feeder) 
+
+// matrix execution set #1
+[00] (transaction:message::sync -> transform:back) (transform:back -> net:proxy:session) 
+

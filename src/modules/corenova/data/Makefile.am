@@ -1,4 +1,4 @@
-SUBDIRS = db processor
+SUBDIRS = db processor parser configuration 
 
 INCLUDES = -I$(top_builddir)/src/include
 
@@ -86,9 +86,9 @@ pkglib_LTLIBRARIES += glob.la
 glob_la_SOURCES     = glob.c
 glob_la_CFLAGS      = -DMODULE=corenova_data_glob
 
-pkglib_LTLIBRARIES += inifile.la
-inifile_la_SOURCES  = inifile.c
-inifile_la_CFLAGS   = -DMODULE=corenova_data_inifile
+# pkglib_LTLIBRARIES += inifile.la
+# inifile_la_SOURCES  = inifile.c
+# inifile_la_CFLAGS   = -DMODULE=corenova_data_inifile
 
 pkglib_LTLIBRARIES += spool.la
 spool_la_SOURCES    = spool.c

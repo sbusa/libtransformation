@@ -1,0 +1,5 @@
+
+#define PROXY_SSL
+#define PROXY_HTTP
+#define PROXY_POP3
+#define PROXY_SMTP

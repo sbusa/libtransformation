@@ -5,11 +5,9 @@ THIS = {
 	.version = "1.0",
 	.author = "Peter K. Lee <saint@corenova.com>",
 	.description = "This program lets you work with a database.",
-	.requires = LIST ("corenova.data.inifile",
-					  "corenova.data.database",
+	.requires = LIST ("corenova.data.database",
 					  "corenova.sys.getopts"),
 	.options = {
-		OPTION ("config_file", NULL, "name of configuration ini file"),
 		OPTION ("module",   NULL, "database module to use"),
 		OPTION ("host",     NULL, "hostname to connect to"),
 		OPTION ("port",     NULL, "port to connect to"),
@@ -20,7 +18,6 @@ THIS = {
 	}
 };
 
-#include <corenova/data/inifile.h>
 #include <corenova/data/database.h>
 #include <corenova/sys/getopts.h>
 

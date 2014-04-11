@@ -9,6 +9,18 @@ bin_PROGRAMS     += universal
 universal_SOURCES = universal.c
 universal_LDADD   = ../library/libNovaLoader.la
 
+# a utility to check a module
+bin_PROGRAMS        += check-module
+check_module_SOURCES = check-module.c
+check_module_LDADD   = ../library/libNovaLoader.la
+
+# a utility to play with transformation engine
+bin_PROGRAMS        += transformer
+transformer_SOURCES = transformer.c
+transformer_LDADD   = ../library/libNovaLoader.la
+
+if BUILD_TESTPROGS
+
 if BUILD_WATCHDOG
 
 bin_PROGRAMS       += watchdog
@@ -17,6 +29,14 @@ watchdog_LDADD      = ../library/libNovaLoader.la
 
 endif
 
+if BUILD_GUMBO
+
+# this test program broken currently
+# bin_PROGRAMS += gumbotest
+# gumbotest_SOURCES = gumbotest.c
+# gumbotest_LDADD   = ../library/libNovaLoader.la
+
+endif
 
 bin_PROGRAMS += dummy
 dummy_SOURCES = dummy.c
@@ -29,18 +49,6 @@ test_ntlm_SOURCES = test_ntlm.c
 test_ntlm_LDADD   = ../library/libNovaLoader.la
 
 endif
-
-bin_PROGRAMS += test_route
-test_route_SOURCES = test_route.c
-test_route_LDADD   = ../library/libNovaLoader.la
-
-bin_PROGRAMS += test_pcap
-test_pcap_SOURCES = test_pcap.c
-test_pcap_LDADD   = ../library/libNovaLoader.la
-
-bin_PROGRAMS += test_hmap
-test_hmap_SOURCES = test_hmap.c
-test_hmap_LDADD   = ../library/libNovaLoader.la
 
 if BUILD_ACTIVEMQ
 
@@ -58,10 +66,23 @@ bin_PROGRAMS += activemq_consumer
 activemq_consumer_SOURCES = activemq_consumer.c
 activemq_consumer_LDADD   = ../library/libNovaLoader.la
 
+endif
+
+bin_PROGRAMS += test_route
+test_route_SOURCES = test_route.c
+test_route_LDADD   = ../library/libNovaLoader.la
+
+if BUILD_PCAP
+
+bin_PROGRAMS += test_pcap
+test_pcap_SOURCES = test_pcap.c
+test_pcap_LDADD   = ../library/libNovaLoader.la
 
 endif
 
-if BUILD_TESTPROGS
+bin_PROGRAMS += test_hmap
+test_hmap_SOURCES = test_hmap.c
+test_hmap_LDADD   = ../library/libNovaLoader.la
 
 #bin_PROGRAMS += dummy
 #dummy_SOURCES = dummy.c
@@ -74,15 +95,5 @@ tcp_connect_LDADD   = ../library/libNovaLoader.la
 bin_PROGRAMS    += database
 database_SOURCES = database.c
 database_LDADD   = ../library/libNovaLoader.la
-
-# a utility to check a module
-bin_PROGRAMS        += check-module
-check_module_SOURCES = check-module.c
-check_module_LDADD   = ../library/libNovaLoader.la
-
-# a utility to play with transformation engine
-bin_PROGRAMS        += transformer
-transformer_SOURCES = transformer.c
-transformer_LDADD   = ../library/libNovaLoader.la
 
 endif

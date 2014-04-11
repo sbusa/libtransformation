@@ -184,6 +184,9 @@ destroySSL (ssl_t **sslPtr) {
 				SSL_shutdown (ssl->conn);
 				SSL_free (ssl->conn);
 			}
+			if (ssl->ctx){
+				SSL_CTX_free(ssl->ctx);
+			}
 			/* SSL_free indirectly removes it, damn this was causing the problem... */
 //			BIO_free (ssl->sslBio);
 //			
@@ -631,7 +634,7 @@ sslWrite (ssl_t *ssl, char *buf, uint32_t size) {
                   usleep (10000);
                   goto try_record_write;
               case SSL_SHUTDOWN:
-                  return 0;
+                  return -1;
 			}
 		} else {
 		
@@ -649,7 +652,7 @@ sslWrite (ssl_t *ssl, char *buf, uint32_t size) {
                   goto try_write;
 				
               case SSL_SHUTDOWN:
-                  return 0;
+                  return -1;
 			}
 			/* should check returnValue or assume returnValue == toWrite here? */
 			write += toWrite;

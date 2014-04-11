@@ -5,7 +5,7 @@ THIS = {
 	.version = "1.0",
 	.author = "Peter K. Lee <saint@corenova.com>",
 	.description = "This program should allow you to see the transformation engine in action.",
-	.requires = LIST ("corenova.data.inifile",
+	.requires = LIST ("corenova.data.configuration.xform",
                       "corenova.data.array",
                       "corenova.sys.debug",
                       "corenova.sys.getopts",
@@ -18,7 +18,7 @@ THIS = {
 	}
 };
 
-#include <corenova/data/inifile.h>
+#include <corenova/data/configuration/xform.h>
 #include <corenova/data/array.h>
 #include <corenova/sys/debug.h>
 #include <corenova/sys/getopts.h>
@@ -40,30 +40,40 @@ int main(int argc, char **argv) {
         debug_level = I (Parameters)->getValue (params,"debug_level");
         logdir      = I (Parameters)->getValue (params,"logdir");
 
+        /* process the global settings */
+        if (debug_level) {
+            char *debug_levels[] = DEBUG_LEVELS;
+            DebugLevel = atoi(debug_level);
+            DEBUGP(DINFO, "main", "setting debug level to %s", debug_levels[DebugLevel]+1);
+        }
+        if (logdir) {
+            I (Debug)->logDir (logdir);
+            DEBUGP(DINFO, "main", "setting log output to %s", logdir);
+        }
         if (config_file) {
-            configuration_t *conf = I (IniFileParser)->parse (config_file);
+            configuration_t *conf = I (XformConfigParser)->parse (config_file);
 			if (conf) {
-                /* process the global settings */
-                if (debug_level) {
-                    char *debug_levels[] = DEBUG_LEVELS;
-                    DebugLevel = atoi(debug_level);
-                    DEBUGP(DINFO, "main", "setting debug level to %s", debug_levels[DebugLevel]+1);
-                }
-                if (logdir) {
-                    I (Debug)->logDir (logdir);
-                    DEBUGP(DINFO, "main", "setting log output to %s", logdir);
-                }
-
+                char *confout = I (Configuration)->toString (conf);
+                printf ("\nSTAGE 1: AFTER XFORM CONFIG PARSER (using %s)\n",config_file);
+                printf ("------------------------------------------------------------------------------\n");
+                printf ("%s\n",confout);
+                
                 /* main operation */
                 transform_engine_t *teng = I (TransformEngine)->new (conf);
                 if (teng) {
-                    printf ("=== [ RULES - from configuration ] ===\n");
+                    printf ("\nSTAGE 2: AFTER XFORM ENGINE PROCESSING (using %s)\n",config_file);
+                    printf ("------------------------------------------------------------------------------\n");
                     I (TransformEngine)->printRules (teng);
+
+                    printf ("\nSTAGE 3: AFTER XFORM SYMBOL EXPANSION PROCESSING (using %s)\n",config_file);
+                    printf ("------------------------------------------------------------------------------\n");
                     transformation_matrix_t *matrix = I (TransformEngine)->resolve (teng);
                     I (TransformEngine)->destroy (&teng);
                     if (matrix) {
+                        printf ("\nSTAGE 4: FINAL XFORM MATRIX EXECUTION PLAN (using %s)\n",config_file);
+                        printf ("------------------------------------------------------------------------------\n");
                         I (TransformationMatrix)->print (matrix);
-                        sleep (30);
+                        sleep (5);
                         I (TransformationMatrix)->destroy (&matrix);
                     }
                 }
