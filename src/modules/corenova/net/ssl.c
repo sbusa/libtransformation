@@ -19,11 +19,11 @@ THIS = {
 #include <errno.h>
 #include <openssl/err.h> /* for ERR_print_errors */
 #include <unistd.h>
+#include <dirent.h>
 
 /***** SSL Thread-Safe callback setup  *****/
 
 static MUTEX_TYPE *mutexList = NULL;
-static cache_t * ssl_cache = NULL;
 
 static void _sslLockingFunction (int32_t mode, int32_t n, const char *file, int32_t line) {
 	if (mode & CRYPTO_LOCK) {
@@ -71,12 +71,24 @@ static int32_t _sslThreadCleanup(void)
 	return 0;
 }
 
+char *
+trim_cname(char *cname) {
+	int ssize;
+	char *ocname = cname;
+	while (*cname != '\0') {
+		if (*cname == '\\') {
+			break;
+		}
+		ssize++;
+		cname++;
+	}
+	return strndup(ocname, ssize);
+}
+
 static inline int ssl_cert_entry_cmp (void *key, void *data) {
 	char *A = (char *)key;
 	char *B = ((ssl_cache_entry_t *)data)->key;
-	DEBUGP (DINFO, "ssl_cert_entry_cmp", "key %s, data %s", key, ((ssl_cache_entry_t *)data)->key)
 	if (I (String)->equal (A, B)) {
-		DEBUGP (DINFO, "ssl_cert_entry_cmp", "matched key and entry");
 		return 0;
 	} else {
 		return 1;
@@ -86,8 +98,10 @@ static inline int ssl_cert_entry_cmp (void *key, void *data) {
 static inline void ssl_cert_entry_del (void *data) {
 	ssl_cache_entry_t *entry = data;
 	if (entry) {
+		DEBUGP (DINFO, "ssl_cert_entry_del", "Deleting cert with cname %s", entry->key);
+		free(entry->key);
 		X509_free(entry->certificate);
-		free (entry);
+		free(entry);
 	}
 }
 
@@ -125,11 +139,32 @@ newSslCertCache (uint32_t max_entries, uint32_t max_memory) {
 	return I (Cache)->new (ssl_cert_entry_cmp, ssl_cert_entry_del, max_entries, max_memory);
 }
 
+void 
+write_to_file(char *dp, ssl_cache_entry_t *entry) {
+	if (dp && entry ) {
+		char *fname = trim_cname(entry->key);
+		char *name = I (String)->copy(dp);
+		I (String)->join(&name, "/");
+		I (String)->join(&name, fname);
+		
+		FILE *fp = fopen(name, "w");
+		if (fp) {
+			PEM_write_X509(fp, entry->certificate);
+			fclose(fp);
+			free(name);
+			free(fname);
+		} else {
+			DEBUGP (DINFO, "write_to_file", "Failed to open file %s", name);
+		}
+	}
+
+}
+
+
 static ssl_cache_entry_t *
-putSslCertCacheEntry (const char *cname, X509 *certificate) {
+putSslCertCacheEntry (cache_t *ssl_cache, char *dp, const char *cname, X509 *certificate) {
 	if (!ssl_cache) {
-		DEBUGP (DINFO, "putSslCertCacheEntry", "no ssl_cache, create it now");
-		ssl_cache = newSslCertCache(0, 0);
+		return NULL;
 	}
 	if (cname && certificate) {
 		ssl_cache_entry_t *entry = (ssl_cache_entry_t *) calloc(1, sizeof(ssl_cache_entry_t));
@@ -137,6 +172,7 @@ putSslCertCacheEntry (const char *cname, X509 *certificate) {
 			entry->key = I (String)->copy (cname);
 			entry->certificate = certificate;
 			I (Cache)->put (ssl_cache, (void *)entry->key, entry, sizeof(ssl_cache_entry_t) + sizeof(cname));
+			write_to_file(dp, entry);
 			return entry;
 		}
 	}
@@ -144,8 +180,7 @@ putSslCertCacheEntry (const char *cname, X509 *certificate) {
 }
 
 static ssl_cache_entry_t *
-getSslCertCacheEntry (char *cname) {
-	DEBUGP (DINFO, "getSslCertCacheEntry", "fetching certificate");
+getSslCertCacheEntry (cache_t *ssl_cache, char *cname) {
 	if (cname && ssl_cache) {
 		ssl_cache_entry_t *entry = (ssl_cache_entry_t *)I (Cache)->get (ssl_cache, cname);
 		if (entry) {
@@ -155,8 +190,54 @@ getSslCertCacheEntry (char *cname) {
 	} else {
 		DEBUGP (DINFO, "getSslCertCacheEntry", "ssl_cache in null");
 	}
-	DEBUGP (DINFO, "getSslCertCacheEntry", "failed fetching certificate");
 	return NULL;
+}
+
+static void
+loadSslCertCache (char *dp, cache_t *ssl_cache) {
+	DEBUGP (DINFO, "loadSslCertCache", "loading SSL certs from Cache %s", dp);
+	if (dp && ssl_cache) {
+		struct dirent *file = NULL;
+		FILE *fp = NULL;
+		DIR * dir = opendir(dp);
+		if (dir) {
+			/* open the files in the directory and load them into cache */
+		        while ((file  = readdir(dir))) {
+				/* skip current and prev directory */
+				if ((!strcmp(file->d_name, ".")) || (!strcmp(file->d_name, ".."))) {
+					continue;
+				}
+				char *filename = I (String)->copy(dp);
+				I (String)->join(&filename, "/");
+				I (String)->join(&filename, file->d_name);
+				fp = fopen(filename, "rb");
+				if (fp) {
+					X509 *cert = NULL;
+					char *key;
+					char * PeerCname = (char *)malloc(1024);
+					cert = PEM_read_X509(fp, &cert, NULL, NULL);
+					/* Fetch the cname */
+               		         	memset (PeerCname,0,sizeof (PeerCname));
+	       		                X509_NAME_get_text_by_NID(X509_get_subject_name(cert),
+               		                                                           NID_commonName, PeerCname, 1024);
+					key = I (String)->copy(PeerCname);
+					DEBUGP (DINFO, "loadSslCertCache", "found cert file %s with cname %s", file->d_name, key);
+				 	if (cert && key) {	
+						putSslCertCacheEntry (ssl_cache, NULL, key, cert);
+					}
+					free(PeerCname);
+					fclose(fp);
+			        } else {
+					DEBUGP (DINFO, "loadSslCertCache", "Failed to open file %s, error %s", filename, strerror(errno));
+				}
+				free(filename);
+			}
+			closedir(dir);
+		} else {
+			DEBUGP (DINFO, "loadSslCertCache", "not able to open dir");
+		}
+	}		
+				
 }
 
 static void
@@ -169,6 +250,7 @@ IMPLEMENT_INTERFACE(SSLCertCache) = {
 	.new =	newSslCertCache,
 	.put = 	putSslCertCacheEntry,
 	.get = 	getSslCertCacheEntry,
+	.load = loadSslCertCache,
 	.destroy = destroySslCertCache
 };
 
@@ -295,9 +377,6 @@ static void _destroyContext (ssl_context_t **ctx) {
 	if (ctx && *ctx) {
 		SSL_CTX_free (*ctx);
 		*ctx = NULL;
-	}
-	if (ssl_cache) {
-		I (SSLCertCache)->destroy (&ssl_cache);
 	}
 }
 
