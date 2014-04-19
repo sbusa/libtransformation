@@ -79,7 +79,7 @@ static inline int linker_wild_entry_cmp (void *key, void *data) {
     return strcmp (A,B);
 }
 
-static inline void linker_entry_del (void *data) {
+static inline void linker_entry_del (void *data, void *cookie) {
     linker_entry_t *entry = (linker_entry_t *) data;
     if (entry) {
         DEBUGP (DDEBUG,"linker_entry_del","removing %s",entry->key);
@@ -731,8 +731,8 @@ newTransformationProcessor (transformation_matrix_t *matrix, parameters_t *param
         instance->matrix = matrix;
 
 
-        instance->linkers.explicit = I (Cache)->new (linker_entry_cmp, linker_entry_del, 1000, 100000);
-        instance->linkers.wild     = I (Cache)->new (linker_wild_entry_cmp, linker_entry_del, 500, 50000);
+        instance->linkers.explicit = I (Cache)->new (linker_entry_cmp, linker_entry_del, 1000, 100000, NULL);
+        instance->linkers.wild     = I (Cache)->new (linker_wild_entry_cmp, linker_entry_del, 500, 50000, NULL);
         
         if (!instance->executors || !instance->feederQueue || !instance->execQueue) {
             DEBUGP (DERR,"newTransformationProcessor","unable to create underlying executor array, feeder, exec queues!");

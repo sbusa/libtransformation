@@ -95,10 +95,10 @@ static inline int ssl_cert_entry_cmp (void *key, void *data) {
 	}
 }
 
-static inline void ssl_cert_entry_del (void *data) {
+static inline void ssl_cert_entry_del (void *data, void *cookie) {
 	ssl_cache_entry_t *entry = data;
 	if (entry) {
-		DEBUGP (DINFO, "ssl_cert_entry_del", "Deleting cert with cname %s", entry->key);
+		DEBUGP (DINFO, "ssl_cert_entry_del", "Deleting cert with cname %s, filepath %s", entry->key, (char *)cookie);
 		free(entry->key);
 		X509_free(entry->certificate);
 		free(entry);
@@ -134,9 +134,9 @@ static int32_t password_cb(char *buf, int32_t len, int32_t rwflag, void *userdat
 
 
 static cache_t *
-newSslCertCache (uint32_t max_entries, uint32_t max_memory) {
+newSslCertCache (uint32_t max_entries, uint32_t max_memory, char *dp) {
 	DEBUGP (DINFO, "newSSLCertCache", "Creating a new SSL Cache");
-	return I (Cache)->new (ssl_cert_entry_cmp, ssl_cert_entry_del, max_entries, max_memory);
+	return I (Cache)->new (ssl_cert_entry_cmp, ssl_cert_entry_del, max_entries, max_memory, (void *)dp);
 }
 
 void 

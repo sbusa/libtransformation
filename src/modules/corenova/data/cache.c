@@ -29,13 +29,13 @@ __cache_cmp_func ( ubi_trItemPtr itemPtr, ubi_trNodePtr nodePtr) {
 }
 
 static inline void
-__cache_del_func (ubi_trNodePtr nodePtr) {
-    ((__cache_entry_t *)nodePtr)->del (((__cache_entry_t *)nodePtr)->data);
+__cache_del_func (ubi_trNodePtr nodePtr, void *cookie) {
+    ((__cache_entry_t *)nodePtr)->del (((__cache_entry_t *)nodePtr)->data, cookie);
     free ( nodePtr );
 }
 
 static cache_t *
-newCache (cache_cmp_func cmp, cache_del_func del, uint32_t max_entries, uint32_t max_memory) {
+newCache (cache_cmp_func cmp, cache_del_func del, uint32_t max_entries, uint32_t max_memory, void *cookie) {
     cache_t *cache = NULL;
     if (cmp && del) {
         if (!max_entries) max_entries = CACHE_DEFAULT_MAXENTRIES;
@@ -44,7 +44,7 @@ newCache (cache_cmp_func cmp, cache_del_func del, uint32_t max_entries, uint32_t
         if ((cache = (cache_t *)calloc (1,sizeof (cache_t)))) {
             cache_root_t *root = (cache_root_t *)calloc (1,sizeof (cache_root_t));
             if (root) {
-                cache->root = (void *) ubi_cacheInit (root,__cache_cmp_func,__cache_del_func,max_entries,max_memory);
+                cache->root = (void *) ubi_cacheInit (root,__cache_cmp_func,__cache_del_func,max_entries,max_memory,cookie);
                 if (cache->root && cmp && del) {
                     cache->cmp = cmp;
                     cache->del = del;
@@ -101,6 +101,7 @@ destroyCache (cache_t **cPtr) {
             int hitRatio = ubi_cacheHitRatio (root);
             DEBUGP (DINFO,"destroyCache","Cache Hit Rate: %d.%02d%%",hitRatio/100,hitRatio%100);
             ubi_cacheClear (root);
+	    if (root->cookie) free(root->cookie);
             free (cache->root);
             cache->root = NULL;
         }

@@ -145,7 +145,7 @@ static void free_entry( ubi_cacheRootPtr CachePtr, ubi_cacheEntryPtr EntryPtr )
    */
   {
   CachePtr->mem_used -= EntryPtr->entry_size;
-  (*CachePtr->free_func)( (void *)EntryPtr );
+  (*CachePtr->free_func)( (void *)EntryPtr, CachePtr->cookie );
   } /* free_entry */
 
 static void cachetrim( ubi_cacheRootPtr crptr )
@@ -177,7 +177,8 @@ ubi_cacheRootPtr ubi_cacheInit( ubi_cacheRootPtr  CachePtr,
                                 ubi_trCompFunc    CompFunc,
                                 ubi_trKillNodeRtn FreeFunc,
                                 unsigned long     MaxEntries,
-                                unsigned long     MaxMemory )
+                                unsigned long     MaxMemory ,
+				void * cookie)
   /* ------------------------------------------------------------------------ **
    * Initialize a cache header structure.
    *
@@ -233,6 +234,7 @@ ubi_cacheRootPtr ubi_cacheInit( ubi_cacheRootPtr  CachePtr,
     CachePtr->mem_used    = 0;
     CachePtr->cache_hits  = 0;
     CachePtr->cache_trys  = 0;
+    CachePtr->cookie = cookie;
     }
   return( CachePtr );
   } /* ubi_cacheInit */
@@ -251,7 +253,7 @@ ubi_cacheRootPtr ubi_cacheClear( ubi_cacheRootPtr CachePtr )
   {
   if( CachePtr )
     {
-    (void)ubi_trKillTree( CachePtr, CachePtr->free_func );
+    (void)ubi_trKillTree( CachePtr, CachePtr->free_func, CachePtr->cookie );
     CachePtr->mem_used    = 0;
     CachePtr->cache_hits  = 0;
     CachePtr->cache_trys  = 0;

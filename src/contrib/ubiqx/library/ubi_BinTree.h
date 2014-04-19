@@ -392,7 +392,7 @@ typedef  int (*ubi_btCompFunc)( ubi_btItemPtr, ubi_btNodePtr );
 
 typedef void (*ubi_btActionRtn)( ubi_btNodePtr, void * );
 
-typedef void (*ubi_btKillNodeRtn)( ubi_btNodePtr );
+typedef void (*ubi_btKillNodeRtn)( ubi_btNodePtr, void * );
 
 /* -------------------------------------------------------------------------- **
  * Tree Root Structure: This structure gives us a convenient handle for
@@ -746,7 +746,8 @@ unsigned long ubi_btTraverse( ubi_btRootPtr   RootPtr,
 
 
 unsigned long ubi_btKillTree( ubi_btRootPtr     RootPtr,
-                              ubi_btKillNodeRtn FreeNode );
+                              ubi_btKillNodeRtn FreeNode,
+			      void *cookie );
   /* ------------------------------------------------------------------------ **
    * Delete an entire tree (non-recursively) and reinitialize the ubi_btRoot
    * structure.  Return a count of the number of nodes deleted.
@@ -892,8 +893,8 @@ int ubi_btModuleID( int size, char *list[] );
 #define ubi_trTraverse( Rp, En, Ud ) \
         ubi_btTraverse((ubi_btRootPtr)(Rp), (ubi_btActionRtn)(En), (void *)(Ud))
 
-#define ubi_trKillTree( Rp, Fn ) \
-        ubi_btKillTree( (ubi_btRootPtr)(Rp), (ubi_btKillNodeRtn)(Fn) )
+#define ubi_trKillTree( Rp, Fn , ck) \
+        ubi_btKillTree( (ubi_btRootPtr)(Rp), (ubi_btKillNodeRtn)(Fn), (void *)ck )
 
 #define ubi_trLeafNode( Nd ) \
         ubi_btLeafNode( (ubi_btNodePtr)(Nd) )
