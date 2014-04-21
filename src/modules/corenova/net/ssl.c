@@ -73,7 +73,7 @@ static int32_t _sslThreadCleanup(void)
 
 char *
 trim_cname(char *cname) {
-	int ssize;
+	int ssize = 0;
 	char *ocname = cname;
 	while (*cname != '\0') {
 		if (*cname == '\\') {
@@ -85,7 +85,8 @@ trim_cname(char *cname) {
 	return strndup(ocname, ssize);
 }
 
-static inline int ssl_cert_entry_cmp (void *key, void *data) {
+static inline int 
+ssl_cert_entry_cmp (void *key, void *data) {
 	char *A = (char *)key;
 	char *B = ((ssl_cache_entry_t *)data)->key;
 	if (I (String)->equal (A, B)) {
@@ -95,9 +96,27 @@ static inline int ssl_cert_entry_cmp (void *key, void *data) {
 	}
 }
 
-static inline void ssl_cert_entry_del (void *data, void *cookie) {
+static inline void
+delete_cache_file(char *cname, char *dp) {
+	if (cname && dp) {
+		char *fname = trim_cname(cname);
+		char *name = I (String)->copy(dp);
+
+		I (String)->join(&name, "/");
+		I (String)->join(&name, fname);
+		unlink(name);
+		free(name);
+		free(fname);
+	}
+	
+}
+
+static inline void 
+ssl_cert_entry_del (void *data, void *cookie) {
 	ssl_cache_entry_t *entry = data;
 	if (entry) {
+		/* Delete the persistent cache in the filesystem */
+		delete_cache_file(entry->key, (char *)cookie);
 		DEBUGP (DINFO, "ssl_cert_entry_del", "Deleting cert with cname %s, filepath %s", entry->key, (char *)cookie);
 		free(entry->key);
 		X509_free(entry->certificate);
@@ -146,7 +165,9 @@ write_to_file(char *dp, ssl_cache_entry_t *entry) {
 		char *name = I (String)->copy(dp);
 		I (String)->join(&name, "/");
 		I (String)->join(&name, fname);
-		
+	 
+                /* Delete any existing file */
+		unlink(name);	
 		FILE *fp = fopen(name, "w");
 		if (fp) {
 			PEM_write_X509(fp, entry->certificate);
@@ -172,6 +193,7 @@ putSslCertCacheEntry (cache_t *ssl_cache, char *dp, const char *cname, X509 *cer
 			entry->key = I (String)->copy (cname);
 			entry->certificate = certificate;
 			I (Cache)->put (ssl_cache, (void *)entry->key, entry, sizeof(ssl_cache_entry_t) + sizeof(cname));
+			DEBUGP (DINFO, "putSslCertCacheEntry", "Loaded Certificate for cname %s", cname);
 			write_to_file(dp, entry);
 			return entry;
 		}
@@ -191,6 +213,22 @@ getSslCertCacheEntry (cache_t *ssl_cache, char *cname) {
 		DEBUGP (DINFO, "getSslCertCacheEntry", "ssl_cache in null");
 	}
 	return NULL;
+}
+
+static boolean_t *
+deleteSslCertCacheEntry (cache_t *ssl_cache, char *cname) {
+	if (cname && ssl_cache) {
+		ssl_cache_entry_t *entry = getSslCertCacheEntry(ssl_cache, cname);
+		if (entry) {
+			boolean_t ret = I (Cache)->delete (ssl_cache, cname);
+			DEBUGP (DINFO, "deleteSslCertCacheEntry", "Deleted Cert from cache with cname %s, ret status is %d", cname, ret);
+			X509_free(entry->certificate);
+			free(entry->key);
+			free(entry);
+			return ret;
+		}
+	}
+	return FALSE;
 }
 
 static void
@@ -250,6 +288,7 @@ IMPLEMENT_INTERFACE(SSLCertCache) = {
 	.new =	newSslCertCache,
 	.put = 	putSslCertCacheEntry,
 	.get = 	getSslCertCacheEntry,
+	.delete  = 	deleteSslCertCacheEntry,
 	.load = loadSslCertCache,
 	.destroy = destroySslCertCache
 };

@@ -28,6 +28,7 @@ DEFINE_INTERFACE (Cache)
 	cache_t  *(*new)     (cache_cmp_func cmp, cache_del_func del, uint32_t max_entries, uint32_t max_memory, void *cookie);
     void      (*put)     (cache_t *, void *key, void *data, uint32_t dataSize);
     void     *(*get)     (cache_t *, void *key);
+    boolean_t *(*delete)  (cache_t *, void *key);
 	void      (*destroy) (cache_t **);
 };
 

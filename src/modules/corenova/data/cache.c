@@ -92,6 +92,23 @@ getFromCache (cache_t *cache, void * key) {
     return NULL;
 }
 
+static boolean_t *
+deleteFromCache (cache_t *cache, void *key) {
+	if (cache && key ) {
+		__cache_entry_t *entry = getFromCache(cache, key);
+		if (entry) {
+			MUTEX_LOCK (cache->lock);
+			boolean_t ret = ubi_cacheDelete( cache->root, entry); 
+        		MUTEX_UNLOCK (cache->lock);
+			if (ret) {
+				DEBUGP (DDEBUG, "deleteFromCache", "Deleted entry from Cache");
+			}
+			return ret;
+		}
+	}
+	return FALSE;
+}
+
 static void
 destroyCache (cache_t **cPtr) {
     if (cPtr && *cPtr) {
@@ -115,5 +132,6 @@ IMPLEMENT_INTERFACE (Cache) = {
 	.new     = newCache,
     .put     = putInCache,
     .get     = getFromCache,
+    .delete  = deleteFromCache,
     .destroy = destroyCache
 };
