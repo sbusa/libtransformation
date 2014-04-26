@@ -26,7 +26,7 @@ _printUsage(module_t *info) {
 	printf("-------------------------------------------------\n");
 	printf("Master Parameters:\n");
 	printf("\t-h --help\tThis help page\n");
-	printf("\t-V --version\tPrint version information\n");
+	printf("\t-v --version\tPrint version information\n");
 	printf("\t-D --daemon\tDaemonize (fork into background)\n");
 	printf("\t-L --logdir\tSend all output to directory\n\n");
 	printf("Program Parameters:\n");
@@ -113,11 +113,11 @@ _parseCommandLineArgs (module_t *info, int32_t argc, char **argv) {
 			int32_t daemon = 0;
 			
 			opterr = 0; /* turn off error messages */
-			while ((argch = getopt_long(argc,argv, "DL:hV", StandardOpts, NULL)) != -1) {
+			while ((argch = getopt_long(argc,argv, "DL:hv", StandardOpts, NULL)) != -1) {
 				switch (argch) {
                   case 'L': I (Parameters)->update (params,"logdir",optarg); break;
                   case 'D': daemon = 1; break;
-                  case 'V':
+                  case 'v':
                       printf("%s (Version: %s)\n",info->name,info->version);
                       exit(0); break;
                   case 'h': _printUsage(info); exit(0); break;

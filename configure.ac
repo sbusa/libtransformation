@@ -1,5 +1,6 @@
-AC_INIT([corenova], [1.4.1],
-	[http://bugs.corenova.com/])
+AC_INIT([corenova], [1.5.0],
+	[http://github.com/clearpath-networks/corenova/])
+
 AC_CONFIG_SRCDIR(configure.ac)
 
 # This is the only custom macro directory we have.

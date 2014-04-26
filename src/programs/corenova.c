@@ -1,33 +1,41 @@
 #include <corenova/source-stub.h>
 
 THIS = {
-	.name = "A Transformation Engine Tester",
-	.version = "1.0",
-	.author = "Peter K. Lee <saint@corenova.com>",
-	.description = "This program should allow you to see the transformation engine in action.",
+	.name = "corenova",
+	.version = PACKAGE_VERSION,
+	.author = "Peter K. Lee <peter@corenova.com>",
+	.description = "This program will create a new universe",
 	.requires = LIST ("corenova.data.configuration.xform",
                       "corenova.data.array",
                       "corenova.sys.debug",
                       "corenova.sys.getopts",
+                      "corenova.sys.signals",
                       "corenova.sys.transform"),
 	.options = {
-		OPTION ("config_file", "filename", "name of configuration ini file"),
+		OPTION ("id", "string", "an optional unique identifier representing the running instance"),
+		OPTION ("engine", "filename", "location of engine paramters file"),
+		OPTION ("transform", "filename", "location of transformation xfc file"),
 		OPTION ("logdir", "directory", "log directory to write debug outputs"),
-        OPTION ("debug_level", "integer", "specify runtime debug level (0 - off, 1..6 for increased verbosity)"),
+        OPTION ("verbose", "integer", "specify runtime debug verbosity level (0 - off, 1..6 for increased verbosity)"),
+        OPTION ("novacache", "boolean", "specify runtime execution mode to use caching (default: false)"),
 		OPTION_NULL
 	}
 };
 
+#include <corenova/data/configuration/ini.h>
 #include <corenova/data/configuration/xform.h>
+#include <corenova/data/processor.h>
 #include <corenova/data/array.h>
 #include <corenova/sys/debug.h>
 #include <corenova/sys/getopts.h>
+#include <corenova/sys/signals.h>
 #include <corenova/sys/transform.h>
 
 #include <unistd.h>
 
 /* command line options */
-static char *config_file = NULL;
+static char *id = NULL;
+static char *engine = NULL;
 static char *logdir = NULL;
 static char *debug_level = NULL;
 
@@ -36,21 +44,17 @@ int main(int argc, char **argv) {
     /* process command line arguments */
 	parameters_t *params = I (OptionParser)->parse(&this,argc,argv);
 	if (params && params->count) {
-		config_file = I (Parameters)->getValue (params,"config_file");
-        debug_level = I (Parameters)->getValue (params,"debug_level");
+        id          = I (Parameters)->getValue (params,"id");
+		engine      = I (Parameters)->getValue (params,"engine");
+		transform   = I (Parameters)->getValue (params,"transform");
         logdir      = I (Parameters)->getValue (params,"logdir");
+        verbose     = I (Parameters)->getNumValue (params,"verbose");
+        NovaCache   = I (Parameters)->getBooleanValue (params,"novacache");
 
         /* process the global settings */
-        if (debug_level) {
-            char *debug_levels[] = DEBUG_LEVELS;
-            DebugLevel = atoi(debug_level);
-            DEBUGP(DINFO, "main", "setting debug level to %s", debug_levels[DebugLevel]+1);
-        }
-        if (logdir) {
-            I (Debug)->logDir (logdir);
-            DEBUGP(DINFO, "main", "setting log output to %s", logdir);
-        }
-        if (config_file) {
+        I (Debug)->setup (id,logdir,verbose);
+        
+        if (transform) {
             configuration_t *conf = I (XformConfigParser)->parse (config_file);
 			if (conf) {
                 char *confout = I (Configuration)->toString (conf);

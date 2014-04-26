@@ -4,7 +4,12 @@ AM_LDFLAGS = -no-undefined -dlopen self @PREOPEN@ -static
 
 bin_PROGRAMS =
 
-# the final solution
+# the transformation solution
+bin_PROGRAMS        += corenova
+corenova_SOURCES = corenova.c
+corenova_LDADD   = ../library/libcorenova.la
+
+# the general solution
 bin_PROGRAMS     += universal
 universal_SOURCES = universal.c
 universal_LDADD   = ../library/libNovaLoader.la
@@ -13,11 +18,6 @@ universal_LDADD   = ../library/libNovaLoader.la
 bin_PROGRAMS        += check-module
 check_module_SOURCES = check-module.c
 check_module_LDADD   = ../library/libNovaLoader.la
-
-# a utility to play with transformation engine
-bin_PROGRAMS        += transformer
-transformer_SOURCES = transformer.c
-transformer_LDADD   = ../library/libNovaLoader.la
 
 if BUILD_TESTPROGS
 

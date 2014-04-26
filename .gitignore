@@ -27,6 +27,8 @@ README
 
 /etc/rc-scripts
 
+.libs/
+
 # Compiled Object files
 *.slo
 *.lo
@@ -41,3 +43,5 @@ README
 *.a
 
 *.pc
+
+#.*#

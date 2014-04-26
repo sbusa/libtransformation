@@ -17,7 +17,8 @@ THIS = {
 						 "corenova.sys.quark"),
     .transforms  = LIST ("* => transform:back", /* direct ONLY match */
                          "* => transform:feeder", /* direct ONLY match */
-                         "transform:back -> *")
+                         "transform:back -> *",
+                         "transform:sub@* -> transform:engine")
 };
 
 #include <corenova/data/processor/transformation.h>
@@ -311,6 +312,13 @@ _xformExec (void *inData) {
 
                         IF_TRANSFORM (transformback2any) {
                             I (TransformObject)->destroy (&token->obj);
+                        }
+
+                        IF_TRANSFORM (subtransform) {
+                            /*
+                             * get the sub transform processor instance and override
+                             */ 
+                            //instance = 
                         }
                     }
 
