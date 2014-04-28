@@ -101,12 +101,14 @@ delete_cache_file(char *cname, char *dp) {
 	if (cname && dp) {
 		char *fname = trim_cname(cname);
 		char *name = I (String)->copy(dp);
-
-		I (String)->join(&name, "/");
-		I (String)->join(&name, fname);
-		unlink(name);
-		free(name);
-		free(fname);
+		
+		if (fname && name) {
+			I (String)->join(&name, "/");
+			I (String)->join(&name, fname);
+			unlink(name);
+			free(name);
+			free(fname);
+		}
 	}
 	
 }
@@ -163,19 +165,23 @@ write_to_file(char *dp, ssl_cache_entry_t *entry) {
 	if (dp && entry ) {
 		char *fname = trim_cname(entry->key);
 		char *name = I (String)->copy(dp);
-		I (String)->join(&name, "/");
-		I (String)->join(&name, fname);
+		if (fname && name) {
+			I (String)->join(&name, "/");
+			I (String)->join(&name, fname);
 	 
-                /* Delete any existing file */
-		unlink(name);	
-		FILE *fp = fopen(name, "w");
-		if (fp) {
-			PEM_write_X509(fp, entry->certificate);
-			fclose(fp);
+                	/* Delete any existing file */
+			unlink(name);	
+			FILE *fp = fopen(name, "w");
+			if (fp) {
+				if (!PEM_write_X509(fp, entry->certificate)) {
+					DEBUGP (DINFO, "write_to_file", "Failed to write certificate with cname:%s", entry->key);
+				}
+				fclose(fp);
+			} else {
+				DEBUGP (DINFO, "write_to_file", "Failed to open file %s", name);
+			}
 			free(name);
 			free(fname);
-		} else {
-			DEBUGP (DINFO, "write_to_file", "Failed to open file %s", name);
 		}
 	}
 
@@ -252,18 +258,20 @@ loadSslCertCache (char *dp, cache_t *ssl_cache) {
 				if (fp) {
 					X509 *cert = NULL;
 					char *key;
-					char * PeerCname = (char *)malloc(1024);
+					char PeerCname[1024];
 					cert = PEM_read_X509(fp, &cert, NULL, NULL);
-					/* Fetch the cname */
-               		         	memset (PeerCname,0,sizeof (PeerCname));
-	       		                X509_NAME_get_text_by_NID(X509_get_subject_name(cert),
+				
+					if (cert) {	
+						/* Fetch the cname */
+               		         		memset (PeerCname,0, sizeof(PeerCname));
+	       		                	X509_NAME_get_text_by_NID(X509_get_subject_name(cert),
                		                                                           NID_commonName, PeerCname, 1024);
-					key = I (String)->copy(PeerCname);
-					DEBUGP (DINFO, "loadSslCertCache", "found cert file %s with cname %s", file->d_name, key);
-				 	if (cert && key) {	
-						putSslCertCacheEntry (ssl_cache, NULL, key, cert);
+						key = I (String)->copy(PeerCname);
+						DEBUGP (DINFO, "loadSslCertCache", "found cert file %s with cname %s", file->d_name, key);
+				 		if (key) {	
+							putSslCertCacheEntry (ssl_cache, NULL, key, cert);
+						}
 					}
-					free(PeerCname);
 					fclose(fp);
 			        } else {
 					DEBUGP (DINFO, "loadSslCertCache", "Failed to open file %s, error %s", filename, strerror(errno));
