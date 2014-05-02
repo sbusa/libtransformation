@@ -270,6 +270,7 @@ readDataPipe (data_pipe_t *pipe) {
                 }
             }
             pipe->dataend += nread;
+            *pipe->dataend = '\0';
             DEBUGP (DDEBUG,"readDataPipe","%p - read %d bytes",pipe,nread);
         } else {
             /* there's more data to read, but we're out of space! */
