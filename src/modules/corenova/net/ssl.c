@@ -4,7 +4,7 @@ THIS = {
 	.version     = "2.0",
 	.author      = "Peter K. Lee <saint@corenova.com>",
 	.description = "This module enables SSL-oriented network operations.",
-	.implements  = LIST ("SSLConnector", "SSLCertCache"),
+	.implements  = LIST ("SSLConnector"),
 	.requires    = LIST ("corenova.net.tcp",
                              "corenova.data.string",
                              "corenova.data.cache")
@@ -71,61 +71,6 @@ static int32_t _sslThreadCleanup(void)
 	return 0;
 }
 
-char *
-trim_cname(char *cname) {
-	int ssize = 0;
-	char *ocname = cname;
-	while (*cname != '\0') {
-		if (*cname == '\\') {
-			break;
-		}
-		ssize++;
-		cname++;
-	}
-	return strndup(ocname, ssize);
-}
-
-static inline int 
-ssl_cert_entry_cmp (void *key, void *data) {
-	char *A = (char *)key;
-	char *B = ((ssl_cache_entry_t *)data)->key;
-	if (I (String)->equal (A, B)) {
-		return 0;
-	} else {
-		return 1;
-	}
-}
-
-static inline void
-delete_cache_file(char *cname, char *dp) {
-	if (cname && dp) {
-		char *fname = trim_cname(cname);
-		char *name = I (String)->copy(dp);
-		
-		if (fname && name) {
-			I (String)->join(&name, "/");
-			I (String)->join(&name, fname);
-			unlink(name);
-			free(name);
-			free(fname);
-		}
-	}
-	
-}
-
-static inline void 
-ssl_cert_entry_del (void *data, void *cookie) {
-	ssl_cache_entry_t *entry = data;
-	if (entry) {
-		/* Delete the persistent cache in the filesystem */
-		delete_cache_file(entry->key, (char *)cookie);
-		DEBUGP (DINFO, "ssl_cert_entry_del", "Deleting cert with cname %s, filepath %s", entry->key, (char *)cookie);
-		free(entry->key);
-		X509_free(entry->certificate);
-		free(entry);
-	}
-}
-
 void CONSTRUCTOR mySetup ()
 {
 //	DEBUGP(DINFO,"constructor"," - making SSL thread-safe - ");
@@ -154,153 +99,7 @@ static int32_t password_cb(char *buf, int32_t len, int32_t rwflag, void *userdat
 }
 
 
-static cache_t *
-newSslCertCache (uint32_t max_entries, uint32_t max_memory, char *dp) {
-	DEBUGP (DINFO, "newSSLCertCache", "Creating a new SSL Cache");
-	return I (Cache)->new (ssl_cert_entry_cmp, ssl_cert_entry_del, max_entries, max_memory, (void *)dp);
-}
-
-void 
-write_to_file(char *dp, ssl_cache_entry_t *entry) {
-	if (dp && entry ) {
-		char *fname = trim_cname(entry->key);
-		char *name = I (String)->copy(dp);
-		if (fname && name) {
-			I (String)->join(&name, "/");
-			I (String)->join(&name, fname);
-	 
-                	/* Delete any existing file */
-			unlink(name);	
-			FILE *fp = fopen(name, "w");
-			if (fp) {
-				if (!PEM_write_X509(fp, entry->certificate)) {
-					DEBUGP (DINFO, "write_to_file", "Failed to write certificate with cname:%s", entry->key);
-				}
-				fclose(fp);
-			} else {
-				DEBUGP (DINFO, "write_to_file", "Failed to open file %s", name);
-			}
-			free(name);
-			free(fname);
-		}
-	}
-
-}
-
-
-static ssl_cache_entry_t *
-putSslCertCacheEntry (cache_t *ssl_cache, char *dp, const char *cname, X509 *certificate) {
-	if (!ssl_cache) {
-		return NULL;
-	}
-	if (cname && certificate) {
-		ssl_cache_entry_t *entry = (ssl_cache_entry_t *) calloc(1, sizeof(ssl_cache_entry_t));
-		if (entry) {
-			entry->key = I (String)->copy (cname);
-			entry->certificate = certificate;
-			I (Cache)->put (ssl_cache, (void *)entry->key, entry, sizeof(ssl_cache_entry_t) + sizeof(cname));
-			DEBUGP (DINFO, "putSslCertCacheEntry", "Loaded Certificate for cname %s", cname);
-			write_to_file(dp, entry);
-			return entry;
-		}
-	}
-	return NULL;
-}
-
-static ssl_cache_entry_t *
-getSslCertCacheEntry (cache_t *ssl_cache, char *cname) {
-	if (cname && ssl_cache) {
-		ssl_cache_entry_t *entry = (ssl_cache_entry_t *)I (Cache)->get (ssl_cache, cname);
-		if (entry) {
-			DEBUGP (DINFO, "getSslCertCacheEntry", "Found matching entry with cname %s", entry->key);
-			return entry;
-		}
-	} else {
-		DEBUGP (DINFO, "getSslCertCacheEntry", "ssl_cache in null");
-	}
-	return NULL;
-}
-
-static boolean_t *
-deleteSslCertCacheEntry (cache_t *ssl_cache, char *cname) {
-	if (cname && ssl_cache) {
-		ssl_cache_entry_t *entry = getSslCertCacheEntry(ssl_cache, cname);
-		if (entry) {
-			boolean_t ret = I (Cache)->delete (ssl_cache, cname);
-			DEBUGP (DINFO, "deleteSslCertCacheEntry", "Deleted Cert from cache with cname %s, ret status is %d", cname, ret);
-			X509_free(entry->certificate);
-			free(entry->key);
-			free(entry);
-			return ret;
-		}
-	}
-	return FALSE;
-}
-
-static void
-loadSslCertCache (char *dp, cache_t *ssl_cache) {
-	DEBUGP (DINFO, "loadSslCertCache", "loading SSL certs from Cache %s", dp);
-	if (dp && ssl_cache) {
-		struct dirent *file = NULL;
-		FILE *fp = NULL;
-		DIR * dir = opendir(dp);
-		if (dir) {
-			/* open the files in the directory and load them into cache */
-		        while ((file  = readdir(dir))) {
-				/* skip current and prev directory */
-				if ((!strcmp(file->d_name, ".")) || (!strcmp(file->d_name, ".."))) {
-					continue;
-				}
-				char *filename = I (String)->copy(dp);
-				I (String)->join(&filename, "/");
-				I (String)->join(&filename, file->d_name);
-				fp = fopen(filename, "rb");
-				if (fp) {
-					X509 *cert = NULL;
-					char *key;
-					char PeerCname[1024];
-					cert = PEM_read_X509(fp, &cert, NULL, NULL);
-				
-					if (cert) {	
-						/* Fetch the cname */
-               		         		memset (PeerCname,0, sizeof(PeerCname));
-	       		                	X509_NAME_get_text_by_NID(X509_get_subject_name(cert),
-               		                                                           NID_commonName, PeerCname, 1024);
-						key = I (String)->copy(PeerCname);
-						DEBUGP (DINFO, "loadSslCertCache", "found cert file %s with cname %s", file->d_name, key);
-				 		if (key) {	
-							putSslCertCacheEntry (ssl_cache, NULL, key, cert);
-						}
-					}
-					fclose(fp);
-			        } else {
-					DEBUGP (DINFO, "loadSslCertCache", "Failed to open file %s, error %s", filename, strerror(errno));
-				}
-				free(filename);
-			}
-			closedir(dir);
-		} else {
-			DEBUGP (DINFO, "loadSslCertCache", "not able to open dir");
-		}
-	}		
-				
-}
-
-static void
-destroySslCertCache (cache_t **ptr) {
-	 DEBUGP (DINFO, "destroySslCertCache", "Destroying the SSL cache");
-	I (Cache)->destroy (ptr);
-}
-
-IMPLEMENT_INTERFACE(SSLCertCache) = {
-	.new =	newSslCertCache,
-	.put = 	putSslCertCacheEntry,
-	.get = 	getSslCertCacheEntry,
-	.delete  = 	deleteSslCertCacheEntry,
-	.load = loadSslCertCache,
-	.destroy = destroySslCertCache
-};
-
+#endif
 /** returns: CN_OK on success, else CN_ERR **/
 static boolean_t
 _verifyCertificate(SSL *ssl) {

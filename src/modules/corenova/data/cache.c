@@ -49,8 +49,8 @@ newCache (cache_cmp_func cmp, cache_del_func del, uint32_t max_entries, uint32_t
                     cache->cmp = cmp;
                     cache->del = del;
                     MUTEX_SETUP (cache->lock);
-                    DEBUGP (DINFO,"newCache","Cache created with MaxEntries: %lu and MaxMemory: %lu",
-                            ubi_cacheGetMaxEntries (cache->root), ubi_cacheGetMaxMemory (cache->root));
+                    DEBUGP (DINFO,"newCache","Cache created with MaxEntries: %lu and MaxMemory: %lu, cache root %x",
+                            ubi_cacheGetMaxEntries (cache->root), ubi_cacheGetMaxMemory (cache->root), cache);
                 } else {
                     free (root);
                 }
@@ -128,10 +128,30 @@ destroyCache (cache_t **cPtr) {
     }
 }
 
+static inline void
+__dumpCacheCb( ubi_trNodePtr nodePtr, void *dump) {
+    cache_dump_t *dp = dump;
+    ((cache_dump_func)dp->cb)(((__cache_entry_t *)nodePtr)->data, dp->cookie);
+}
+
+static void
+dumpCache (cache_t **cPtr, cache_dump_t *dump) {
+    if (cPtr && *cPtr) {
+	DEBUGP (DINFO, "dumpCache", "cptr %x *cptr %x", cPtr, *cPtr);
+	cache_t *cache = *cPtr;
+        if (cache->root) {
+            DEBUGP (DINFO, "dumpCache", "cache root %x, calling traverse", cache->root);		
+	    cache_root_t *root = (cache_root_t *)cache->root;
+            ubi_trTraverse(root, __dumpCacheCb, (void *)dump);
+        }
+    }
+}
+
 IMPLEMENT_INTERFACE (Cache) = {
 	.new     = newCache,
     .put     = putInCache,
     .get     = getFromCache,
     .delete  = deleteFromCache,
+    .dump    = dumpCache,
     .destroy = destroyCache
 };

@@ -67,6 +67,11 @@ cache_la_SOURCES  = cache.c
 cache_la_CFLAGS   = -DMODULE=corenova_data_cache -I$(top_builddir)/src/contrib/
 cache_la_LIBADD   = $(top_builddir)/src/contrib/libubiqx.la
 
+pkglib_LTLIBRARIES += certstore.la
+certstore_la_SOURCES  = certstore.c
+certstore_la_CFLAGS   = -DMODULE=corenova_data_certstore -I$(top_builddir)/src/contrib/
+certstore_la_LIBADD   = @LIBSSL@
+
 pkglib_LTLIBRARIES += stree.la
 stree_la_SOURCES = stree.c
 stree_la_CFLAGS  = -DMODULE=corenova_data_stree
