@@ -99,7 +99,6 @@ static int32_t password_cb(char *buf, int32_t len, int32_t rwflag, void *userdat
 }
 
 
-#endif
 /** returns: CN_OK on success, else CN_ERR **/
 static boolean_t
 _verifyCertificate(SSL *ssl) {
