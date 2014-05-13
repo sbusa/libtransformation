@@ -11,6 +11,7 @@ datamoduleincludedir = $(includedir)/corenova/data
 datamoduleinclude_HEADERS =						\
 	corenova/data/array.h                       \
 	corenova/data/cache.h                       \
+	corenova/data/certstore.h					\
 	corenova/data/category.h					\
 	corenova/data/configuration.h				\
 	corenova/data/database.h					\
