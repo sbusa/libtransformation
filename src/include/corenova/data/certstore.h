@@ -85,7 +85,7 @@ DEFINE_INTERFACE (SSLCertCache) {
     ssl_cache_entry_t 	*(*put)		(cache_t *cache, char *dp,  const char *cname, X509 *certificate);
     ssl_cache_entry_t	*(*get)		(cache_t *cache, const char *cname);
     boolean_t           *(*delete)      (cache_t *cache, const char *cname);
-    void 		*(*load)	(char *dp, cache_t *cache, EVP_PKEY *genKey, EVP_PKEY *caKey);
+    long        (*load)	(char *dp, cache_t *cache, EVP_PKEY *genKey, EVP_PKEY *caKey, long serialNumber);
     void 		(*dump)	        (cache_t **cache, cache_dump_t *dump);
     void		*(*destroy)	(cache_t **);
 };	

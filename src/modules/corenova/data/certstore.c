@@ -183,8 +183,8 @@ deleteSslCertCacheEntry (cache_t *ssl_cache, char *cname) {
 	return FALSE;
 }
 
-static void
-loadSslCertCache (char *dp, cache_t *ssl_cache, EVP_PKEY *genKey, EVP_PKEY *caKey) {
+static long
+loadSslCertCache (char *dp, cache_t *ssl_cache, EVP_PKEY *genKey, EVP_PKEY *caKey, long serialNumber) {
 	DEBUGP (DINFO, "loadSslCertCache", "loading SSL certs from Cache %s", dp);
 	if (dp && ssl_cache) {
 		struct dirent *file = NULL;
@@ -217,6 +217,7 @@ loadSslCertCache (char *dp, cache_t *ssl_cache, EVP_PKEY *genKey, EVP_PKEY *caKe
 						if (key) {
 							/* Resign the cert */
 							X509_set_pubkey(cert, genKey);	
+                            ASN1_INTEGER_set(X509_get_serialNumber(cert), serialNumber);
 							if(X509_sign(cert, caKey, EVP_sha1())) {
 								putSslCertCacheEntry (ssl_cache, NULL, key, cert);
 							}
@@ -227,6 +228,7 @@ loadSslCertCache (char *dp, cache_t *ssl_cache, EVP_PKEY *genKey, EVP_PKEY *caKe
 					DEBUGP (DINFO, "loadSslCertCache", "Failed to open file %s, error %s", filename, strerror(errno));
 				}
 				free(filename);
+                serialNumber++;
 			}
 			closedir(dir);
 		} else {
@@ -237,7 +239,8 @@ loadSslCertCache (char *dp, cache_t *ssl_cache, EVP_PKEY *genKey, EVP_PKEY *caKe
             }
 
 		}
-	}		
+	}
+    return serialNumber;		
 
 }
 
