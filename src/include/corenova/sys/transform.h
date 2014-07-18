@@ -209,6 +209,7 @@ DEFINE_INTERFACE (TransformTokenQueue) {
 	transform_token_t       *(*get)     (transform_token_queue_t *);
 	boolean_t                (*put)     (transform_token_queue_t *, transform_token_t *);
     uint32_t                 (*count)   (transform_token_queue_t *);
+	void 			(*clearup) (transform_token_queue_t **);
 	void                     (*destroy) (transform_token_queue_t **);
     
 };

@@ -11,6 +11,7 @@
 #include <corenova/data/file.h>
 typedef file_t transformation_profiler_t;
 
+#define FD_MAP_MAX 128
 typedef struct {
 
 	quark_t *feeder;            /* holds feeder thread */
@@ -61,6 +62,7 @@ typedef struct {
 
     transformation_profiler_t *profiler;
     
+    uint32_t fdbitmap[ FD_MAP_MAX / 32 ]; /* fds */
 } transformation_processor_t;
 
 #define DEFAULT_TRANSFORMATION_PROCESSOR_MAX_EXECUTORS 8192

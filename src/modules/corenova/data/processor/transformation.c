@@ -31,6 +31,10 @@ THIS = {
 
 #include <unistd.h>             /* for usleep */
 #include <stdlib.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <errno.h>
+#include <sys/socket.h>
 
 #ifdef HAVE_SYS_LOADAVG_H
 # include <sys/loadavg.h>
@@ -86,6 +90,83 @@ static inline void linker_entry_del (void *data, void *cookie) {
         I (Array)->destroy (&entry->targets,NULL);
         free (entry);
     }
+}
+
+#define _INIT 1
+#define _CLEAN 2
+#define _RELOAD 3
+/* stamp info of /proc/self/fd/ never change after created */
+static int fdctl(uint32_t *fdbitmap, int cmd)
+{
+	char filename[64];
+	DIR *dir;
+	struct dirent *entry;
+	int res;
+
+	snprintf(filename, 64, "/proc/self/fd");
+	dir = opendir (filename);
+	if (dir) {
+		if (cmd == _INIT) memset(fdbitmap, 0, FD_MAP_MAX / 8);
+
+		while ((entry = readdir (dir)) != NULL) {
+			int fd;
+			mode_t mode;
+			struct stat type;
+
+			fd = atoi(entry->d_name);
+			snprintf(filename, 64, "/proc/self/fd/%d", fd);
+			if (fd > 4 && stat(filename, &type) == 0) {
+				mode = type.st_mode & S_IFMT;
+				switch (mode) {
+					case S_IFIFO: /* redirect to debug.err & debug.out */
+						break;
+
+					case S_IFREG:
+						if (fd > FD_MAP_MAX) {
+							DEBUGP (DERR, "fdctl", "fd %d > FD_MAP_MAX %d", fd, FD_MAP_MAX);
+							break;
+						}
+						
+						if (cmd == _INIT) {
+							fdbitmap[ fd / 32 ] |= 1 << (fd % 32);
+							break;
+						}
+						
+						if (fdbitmap[ fd / 32 ] & (1 << (fd % 32))) {
+							if (cmd == _CLEAN) break;
+						} else {
+							fdbitmap[ fd / 32 ] |= 1 << (fd % 32);
+							if (cmd == _RELOAD) break;
+						}		
+						
+						do {
+							res = close(fd);
+							DEBUGP (DWARN, "fdctl", "fd %d %d %d", fd, res, errno);
+						} while (res == -1 && (errno == EINTR || errno == EIO));
+						fdbitmap[ fd / 32 ] &= ~(1 << (fd % 32));
+	
+						break;
+
+					case S_IFSOCK:
+						if (cmd == _RELOAD) {
+							do {
+								res = close(fd);
+								DEBUGP (DWARN, "fdctl", "fd %d %d %d", fd, res, errno);
+							} while (res == -1 && (errno == EINTR || errno == EIO));
+						}
+
+						break;
+
+					default:
+						DEBUGP (DWARN, "fdctl", "unknow file mode %d!", mode); 
+				}
+			}
+		}
+		
+		closedir (dir);
+	}
+
+	return 0;
 }
 
 /*//////// Transformation Interface Implementation //////////////////////////////////////////*/
@@ -729,7 +810,7 @@ newTransformationProcessor (transformation_matrix_t *matrix, parameters_t *param
          */
         I (TransformationMatrix)->print (matrix);
         instance->matrix = matrix;
-
+	fdctl(instance->fdbitmap, _INIT);
 
         instance->linkers.explicit = I (Cache)->new (linker_entry_cmp, linker_entry_del, 1000, 100000, NULL);
         instance->linkers.wild     = I (Cache)->new (linker_wild_entry_cmp, linker_entry_del, 500, 50000, NULL);
@@ -988,15 +1069,31 @@ reloadTransformationProcessor (transformation_processor_t *instance, transformat
         if (!different) {
             // further checking...
             
+			I (TransformationMatrix)->destroy (&matrix);
+			fdctl(instance->fdbitmap, _CLEAN); 
         }
         
         // if different, then stop the current processor instance and load the new matrix and re-start!
         if (different) {
+            SystemExit = TRUE;
+            fdctl(instance->fdbitmap, _RELOAD);
             I (TransformationProcessor)->stop (instance);
 
             I (TransformationMatrix)->destroy (&instance->matrix);
             instance->matrix = matrix;
-            
+       
+            I (Array)->destroy (&instance->executors, _destroyExecutor);
+            I (Quark)->destroy (&instance->feeder);
+            I (Quark)->destroy (&instance->monitor);
+            instance->executors = I (Array)->new ();
+            I (TransformTokenQueue)->clearup(&instance->feederQueue);
+            I (TransformTokenQueue)->clearup(&instance->execQueue);
+            I (Cache)->destroy (&instance->linkers.explicit);
+            I (Cache)->destroy (&instance->linkers.wild);
+            instance->linkers.explicit = I (Cache)->new (linker_entry_cmp, linker_entry_del, 1000, 100000, NULL);
+            instance->linkers.wild     = I (Cache)->new (linker_wild_entry_cmp, linker_entry_del, 500, 50000, NULL);
+            instance->waitingExecutors = 0;
+            SystemExit = FALSE;
             I (TransformationProcessor)->start (instance);
         }
 

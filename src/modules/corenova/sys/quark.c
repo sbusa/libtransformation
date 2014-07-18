@@ -165,8 +165,7 @@ _stop (quark_t *quark, uint32_t timeout_ms) {
 		quark->req |= QUARK_REQ_STOP;
 		if (pthread_cond_timedwait(&quark->dead,&quark->lock,
                                    (const struct timespec *)&to) != 0) {
-            DEBUGP (DDEBUG,"stop","sending SIGTERM to the quark '%s'",quark->name);
-            _kill (quark, SIGTERM);
+            DEBUGP (DDEBUG,"stop","stoping the quark '%s'",quark->name);
             to.tv_nsec += 1000000;
             if (to.tv_nsec >= 1000000000) {
                 to.tv_sec += 1;
