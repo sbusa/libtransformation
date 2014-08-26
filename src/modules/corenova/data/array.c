@@ -36,6 +36,17 @@ destroyArray (array_t **list, array_del_func del) {
     }
 }
 
+static void 
+deleteArray (array_t *list, int index) {
+	if (list && index < list->num) {
+		MUTEX_LOCK (list->lock);
+		if ((list->num - 1) != index)
+		memmove(&list->items[index], &list->items[index + 1], sizeof(void *) * (list->num - 1 - index));		
+		list->num --;
+		MUTEX_UNLOCK (list->lock);
+	}
+}
+
 static int
 countArray (array_t *list) {
     if (list) {
@@ -292,6 +303,7 @@ cloneArray (const array_t *orig) {
 IMPLEMENT_INTERFACE (Array) = {
 	.new          = newArray,
     .destroy      = destroyArray,
+    .delete       = deleteArray,
     .count        = countArray,
     .add          = addArrayItem,
     .remove       = removeArrayItem,
