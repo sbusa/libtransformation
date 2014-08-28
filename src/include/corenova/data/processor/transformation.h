@@ -72,7 +72,7 @@ typedef struct {
 #define DEFAULT_EXEC_QUEUE_TIMEOUT 100 /* 100ms */
 #define DEFAULT_TRANSFORMATION_LOAD_DELAY 10 /* 10ms */
 
-/* Sys counter object for sending reports to logger client*/
+/* Sys counter controller object for sys:counter xform->instance blueprint and other params */
 typedef struct {
 	uint32_t count; /* Count of the stat event - violations, transactions etc */
 	struct timeval start_time;
