@@ -5,16 +5,21 @@ THIS = {
 	.author      = "Peter K. Lee <saint@corenova.com>",
 	.description = "This module enables SSL-oriented network operations.",
 	.implements  = LIST ("SSLConnector"),
-	.requires    = LIST ("corenova.net.tcp")
+	.requires    = LIST ("corenova.net.tcp",
+                             "corenova.data.string",
+                             "corenova.data.cache")
 };
 
 #include <corenova/net/ssl.h>
+#include <corenova/data/string.h>
+#include <corenova/data/cache.h>
 
 /*//////// MODULE CODE //////////////////////////////////////////*/
 
 #include <errno.h>
 #include <openssl/err.h> /* for ERR_print_errors */
 #include <unistd.h>
+#include <dirent.h>
 
 /***** SSL Thread-Safe callback setup  *****/
 
@@ -93,6 +98,7 @@ static int32_t password_cb(char *buf, int32_t len, int32_t rwflag, void *userdat
 	return (strlen(buf));
 }
 
+
 /** returns: CN_OK on success, else CN_ERR **/
 static boolean_t
 _verifyCertificate(SSL *ssl) {
@@ -144,9 +150,7 @@ static int32_t _checkSSLError (SSL *ssl, int32_t code) {
           return SSL_SHUTDOWN;
 
       case SSL_ERROR_SYSCALL:
-          if (errno == EINTR && !SystemExit) return SSL_TRY_AGAIN;
-          /* 
-           * This case is not error. When ERR_get_error() does not report any error return
+           /* This case is not error. When ERR_get_error() does not report any error return
            * with what we have.
            */  
           if (!ERR_get_error() && !errno) {
@@ -240,6 +244,8 @@ _newContext (ssl_mode_t mode,
         boolean_t clientAuth = 0;
 	ssl_context_t *ctx = NULL;
 	SSL_METHOD *method = NULL;
+
+
 	switch (mode) {
       case SSL_CLIENT:
           method = SSLv23_client_method ();

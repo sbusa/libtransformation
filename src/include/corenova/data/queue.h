@@ -56,6 +56,7 @@ DEFINE_INTERFACE (Queue)
 	void      (*setTimeout)  (cqueue_t *, __u32 t_ms);
 	void      (*setBlocking) (cqueue_t *, boolean_t);
 	void      (*disable)     (cqueue_t *);
+	void      (*enable)     (cqueue_t *);
 	void      (*destroy)     (cqueue_t **);
 };
 

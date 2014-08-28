@@ -233,6 +233,11 @@ static void _disable (cqueue_t *queue) {
 		queue->disabled = TRUE;
 }
 
+static void _enable (cqueue_t *queue) {
+        if (queue)
+                queue->disabled = FALSE;
+}
+
 IMPLEMENT_INTERFACE (Queue) = {
 	.new         = _new,
 	.get         = _get,
@@ -241,6 +246,7 @@ IMPLEMENT_INTERFACE (Queue) = {
 	.setTimeout  = _setTimeout,
 	.setBlocking = _setBlocking,
 	.disable     = _disable,
+	.enable      = _enable,
 	.destroy     = _destroy
 };
 	

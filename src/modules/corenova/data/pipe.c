@@ -270,6 +270,7 @@ readDataPipe (data_pipe_t *pipe) {
                 }
             }
             pipe->dataend += nread;
+            *pipe->dataend = '\0';
             DEBUGP (DDEBUG,"readDataPipe","%p - read %d bytes",pipe,nread);
         } else {
             /* there's more data to read, but we're out of space! */
@@ -621,6 +622,7 @@ syncDataPipeStream (data_pipe_stream_t *stream) {
                   }
               case 0: 
                 DEBUGP (DDEBUG,"syncDataPipeStream","POLL EXIT -%d ",errno);
+		if (!(hasDataInPipe(stream->in2out) || hasDataInPipe(stream->out2in)))
                 return FALSE;
             }
 
@@ -655,7 +657,7 @@ syncDataPipeStream (data_pipe_stream_t *stream) {
                 goto flush_s2c;
             }
 
-            if (fds[0].revents & POLLIN) {
+            if ((fds[0].revents & POLLIN) || hasDataInPipe(stream->in2out)) {
                 if (stream->initiator == PIPESTREAM_IN2OUT && syncOut2In) {
                     DEBUGP (DDEBUG,"syncDataPipeStream","completed sync operation!");
                     return TRUE;
@@ -678,7 +680,7 @@ syncDataPipeStream (data_pipe_stream_t *stream) {
                 }
             }
 
-            if (fds[1].revents & POLLIN) {
+            if ((fds[1].revents & POLLIN) || hasDataInPipe(stream->out2in)) {
                 if (stream->initiator == PIPESTREAM_OUT2IN && syncIn2Out) {
                     DEBUGP (DDEBUG,"syncDataPipeStream","completed sync operation!");
                     return TRUE;

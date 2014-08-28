@@ -1537,6 +1537,22 @@ putTransformToken (transform_token_queue_t *tQueue, transform_token_t *token) {
 }
 
 static void
+clearupTransformTokenQueue (transform_token_queue_t **qPtr) {
+	if (qPtr) {
+		transform_token_queue_t *tQueue = *qPtr;
+		if (tQueue) {
+			transform_token_t *old;
+
+			I (Queue)->disable ((cqueue_t *) tQueue);
+			while ((old = (transform_token_t *) I (Queue)->drop ((cqueue_t *) tQueue))) {
+				I (TransformToken)->destroy (&old);
+			}
+			I (Queue)->enable ((cqueue_t *) tQueue);
+		}
+	}
+}
+
+static void
 destroyTransformTokenQueue (transform_token_queue_t **qPtr) {
 	if (qPtr) {
 		transform_token_queue_t *tQueue = *qPtr;
@@ -1564,5 +1580,6 @@ IMPLEMENT_INTERFACE (TransformTokenQueue) = {
 	.get     = getTransformToken,
 	.put     = putTransformToken,
     .count   = countTransformTokenQueue,
+	.clearup = clearupTransformTokenQueue,
 	.destroy = destroyTransformTokenQueue
 };

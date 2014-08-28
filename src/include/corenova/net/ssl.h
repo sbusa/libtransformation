@@ -2,6 +2,7 @@
 #define __ssl_H__
 
 #include <corenova/interface.h>
+#include <corenova/data/cache.h>
 
 #include <corenova/net/tcp.h>
 

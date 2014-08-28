@@ -29,13 +29,13 @@ __cache_cmp_func ( ubi_trItemPtr itemPtr, ubi_trNodePtr nodePtr) {
 }
 
 static inline void
-__cache_del_func (ubi_trNodePtr nodePtr) {
-    ((__cache_entry_t *)nodePtr)->del (((__cache_entry_t *)nodePtr)->data);
+__cache_del_func (ubi_trNodePtr nodePtr, void *cookie) {
+    ((__cache_entry_t *)nodePtr)->del (((__cache_entry_t *)nodePtr)->data, cookie);
     free ( nodePtr );
 }
 
 static cache_t *
-newCache (cache_cmp_func cmp, cache_del_func del, uint32_t max_entries, uint32_t max_memory) {
+newCache (cache_cmp_func cmp, cache_del_func del, uint32_t max_entries, uint32_t max_memory, void *cookie) {
     cache_t *cache = NULL;
     if (cmp && del) {
         if (!max_entries) max_entries = CACHE_DEFAULT_MAXENTRIES;
@@ -44,13 +44,13 @@ newCache (cache_cmp_func cmp, cache_del_func del, uint32_t max_entries, uint32_t
         if ((cache = (cache_t *)calloc (1,sizeof (cache_t)))) {
             cache_root_t *root = (cache_root_t *)calloc (1,sizeof (cache_root_t));
             if (root) {
-                cache->root = (void *) ubi_cacheInit (root,__cache_cmp_func,__cache_del_func,max_entries,max_memory);
+                cache->root = (void *) ubi_cacheInit (root,__cache_cmp_func,__cache_del_func,max_entries,max_memory,cookie);
                 if (cache->root && cmp && del) {
                     cache->cmp = cmp;
                     cache->del = del;
                     MUTEX_SETUP (cache->lock);
-                    DEBUGP (DINFO,"newCache","Cache created with MaxEntries: %lu and MaxMemory: %lu",
-                            ubi_cacheGetMaxEntries (cache->root), ubi_cacheGetMaxMemory (cache->root));
+                    DEBUGP (DINFO,"newCache","Cache created with MaxEntries: %lu and MaxMemory: %lu, cache root %x",
+                            ubi_cacheGetMaxEntries (cache->root), ubi_cacheGetMaxMemory (cache->root), cache);
                 } else {
                     free (root);
                 }
@@ -92,6 +92,23 @@ getFromCache (cache_t *cache, void * key) {
     return NULL;
 }
 
+static boolean_t *
+deleteFromCache (cache_t *cache, void *key) {
+	if (cache && key ) {
+		__cache_entry_t *entry = getFromCache(cache, key);
+		if (entry) {
+			MUTEX_LOCK (cache->lock);
+			boolean_t ret = ubi_cacheDelete( cache->root, entry); 
+        		MUTEX_UNLOCK (cache->lock);
+			if (ret) {
+				DEBUGP (DDEBUG, "deleteFromCache", "Deleted entry from Cache");
+			}
+			return ret;
+		}
+	}
+	return FALSE;
+}
+
 static void
 destroyCache (cache_t **cPtr) {
     if (cPtr && *cPtr) {
@@ -101,6 +118,7 @@ destroyCache (cache_t **cPtr) {
             int hitRatio = ubi_cacheHitRatio (root);
             DEBUGP (DINFO,"destroyCache","Cache Hit Rate: %d.%02d%%",hitRatio/100,hitRatio%100);
             ubi_cacheClear (root);
+	    if (root->cookie) free(root->cookie);
             free (cache->root);
             cache->root = NULL;
         }
@@ -110,9 +128,30 @@ destroyCache (cache_t **cPtr) {
     }
 }
 
+static inline void
+__dumpCacheCb( ubi_trNodePtr nodePtr, void *dump) {
+    cache_dump_t *dp = dump;
+    ((cache_dump_func)dp->cb)(((__cache_entry_t *)nodePtr)->data, dp->cookie);
+}
+
+static void
+dumpCache (cache_t **cPtr, cache_dump_t *dump) {
+    if (cPtr && *cPtr) {
+	DEBUGP (DINFO, "dumpCache", "cptr %x *cptr %x", cPtr, *cPtr);
+	cache_t *cache = *cPtr;
+        if (cache->root) {
+            DEBUGP (DINFO, "dumpCache", "cache root %x, calling traverse", cache->root);		
+	    cache_root_t *root = (cache_root_t *)cache->root;
+            ubi_trTraverse(root, __dumpCacheCb, (void *)dump);
+        }
+    }
+}
+
 IMPLEMENT_INTERFACE (Cache) = {
 	.new     = newCache,
     .put     = putInCache,
     .get     = getFromCache,
+    .delete  = deleteFromCache,
+    .dump    = dumpCache,
     .destroy = destroyCache
 };
