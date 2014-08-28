@@ -17,7 +17,8 @@ THIS = {
 						 "corenova.sys.quark"),
     .transforms  = LIST ("* => transform:back", /* direct ONLY match */
                          "* => transform:feeder", /* direct ONLY match */
-                         "transform:back -> *")
+                         "transform:back -> *",
+                         "* -> sys:counter")
 };
 
 #include <corenova/data/processor/transformation.h>
@@ -35,6 +36,7 @@ THIS = {
 #include <dirent.h>
 #include <errno.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #ifdef HAVE_SYS_LOADAVG_H
 # include <sys/loadavg.h>
@@ -216,16 +218,78 @@ TRANSFORM_EXEC (transformback2any) {
     return pop;
 }
 
+TRANSFORM_EXEC(any2syscounter) {
+	struct timeval current_tv;
+	unsigned long elapsed_msec;
+
+	sys_counter_controller_t *in_counter = (sys_counter_controller_t *)xform->instance;
+	unsigned long logger_timeout_in_msec = in_counter->logger_timeout;
+
+	if (in_counter->start_time.tv_sec == 0) {
+		gettimeofday(&in_counter->start_time, NULL);
+	}
+
+	gettimeofday(&current_tv, NULL);
+	DEBUGP (DDEBUG, "any2syscounter", ": millisec %lu\n", current_tv.tv_sec*1000);
+
+	elapsed_msec =  (((current_tv.tv_sec - in_counter->start_time.tv_sec) + 
+				((current_tv.tv_usec -  in_counter->start_time.tv_usec)/1000000)) * 1000);
+
+	if (elapsed_msec > logger_timeout_in_msec) {
+
+		DEBUGP(DDEBUG, "feeder2counter", "sys:counter");
+		//update the sys_object that's sent to logger_client and form a transform object with it
+		if (in && in->format) {
+			sys_counter_t *out_counter_p = (sys_counter_t *)calloc (1,sizeof (sys_counter_t));
+			if (in_counter && out_counter_p) {
+				out_counter_p->format = in->format;
+				out_counter_p->count = in_counter->count;
+				out_counter_p->start = (in_counter->start_time.tv_sec + ((in_counter->start_time.tv_usec)/1000000)) * 1000; 
+				out_counter_p->duration = elapsed_msec;
+
+				/* Initialise in_counter start_time and count to zero */
+				memset (&in_counter->start_time,0, sizeof(in_counter->start_time));
+				in_counter->count = 0;
+
+				transform_object_t *obj = I(TransformObject)->new("sys:counter", out_counter_p);
+				return obj;
+			}
+		}
+	} else {
+		// increment counter in instance object
+		in_counter->count++;
+	}   
+	return NULL;
+}
+
 TRANSFORM_NEW (newEngineTransformation) {
 
-    TRANSFORM ("*","transform:back", any2transformback);
-    TRANSFORM ("*","transform:feeder", feederback);
-    TRANSFORM ("transform:back","*", transformback2any);
+	TRANSFORM ("*","transform:back", any2transformback);
+	TRANSFORM ("*","transform:feeder", feederback);
+	TRANSFORM ("transform:back","*", transformback2any);
+	TRANSFORM ("*","sys:counter", any2syscounter);
+
+	IF_TRANSFORM(any2syscounter) {
+
+		TRANSFORM_HAS_PARAM ("logger_timeout");
+
+		sys_counter_controller_t *counter_controller = (sys_counter_controller_t *)calloc (1,sizeof (sys_counter_controller_t));
+		if (counter_controller) {
+		    /* Logger timeout in ms */	
+			counter_controller->logger_timeout =(unsigned long)(I(Parameters)->getValue(blueprint, "logger_timeout")); 
+		} 
+		TRANSFORM_WITH(counter_controller);
+	}
 
 } TRANSFORM_NEW_FINALIZE;
 
 TRANSFORM_DESTROY (destroyEngineTransformation) {
-    
+	IF_TRANSFORM(any2syscounter) {
+		if (xform->instance) {
+			sys_counter_controller_t *counter_controller = (sys_counter_controller_t *)xform->instance;
+			free (counter_controller);
+		}    
+	}    
 } TRANSFORM_DESTROY_FINALIZE;
 
 IMPLEMENT_INTERFACE (Transformation) = {

@@ -72,6 +72,21 @@ typedef struct {
 #define DEFAULT_EXEC_QUEUE_TIMEOUT 100 /* 100ms */
 #define DEFAULT_TRANSFORMATION_LOAD_DELAY 10 /* 10ms */
 
+/* Sys counter object for sending reports to logger client*/
+typedef struct {
+	uint32_t count; /* Count of the stat event - violations, transactions etc */
+	struct timeval start_time;
+	unsigned long logger_timeout; /* Logger timeout - blueprint */
+} sys_counter_controller_t;
+
+/* Sys counter object for sending reports to logger client*/
+typedef struct {
+	char *format; /* example - transaction:message::http://deny */
+	uint32_t count; /* Count of the stat event - violations, transactions etc */
+	unsigned long start; /* tv.sec + tv.usec - time when the sys counter object got created */
+	unsigned long duration; /* Dynamic Logger timeout updated to logger client/server */
+} sys_counter_t;
+
 /*
  * Extended interface beyond basic DataProcessor with additional calls
  *
