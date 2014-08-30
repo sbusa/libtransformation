@@ -15,3 +15,4 @@ gumbo_la_LIBADD     = @LIBGUMBO@
 pkglib_LTLIBRARIES += jsonc.la
 jsonc_la_SOURCES  = jsonc.c
 jsonc_la_CFLAGS   = -DMODULE=corenova_data_parser_jsonc
+jsonc_la_LIBADD   = -ljson-c
