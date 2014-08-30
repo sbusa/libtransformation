@@ -7,7 +7,7 @@
 
 THIS = {
     .version = "0.1",
-    .author = "Suresh Kumar ",
+    .author = "Hash Yuan",
     .description = "A interface of json-c",
     .implements = LIST("jsonc"),
     .requires = LIST("corenova.data.array")
