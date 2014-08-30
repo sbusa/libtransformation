@@ -96,6 +96,10 @@ typedef struct {
  */
 #include <corenova/data/processor.h>
 
+DEFINE_INTERFACE (TransformCounter) {
+	char *(*toJson)      (transform_counter_t *);
+	void                 (*destroy)  (transform_counter_t **);
+};
 DEFINE_INTERFACE (TransformationProcessor) {
 
 	transformation_processor_t *(*new)      (transformation_matrix_t *, parameters_t *);

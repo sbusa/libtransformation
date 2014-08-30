@@ -4,7 +4,7 @@ THIS = {
 	.version     = "3.0",
 	.author      = "Peter K. Lee <saint@corenova.com>",
 	.description = "This module acts as a powerful transformation data processor dealing with transformation logic",
-	.implements  = LIST ("DataProcessor","TransformationProcessor","Transformation","TransformTrace"),
+	.implements  = LIST ("DataProcessor","TransformationProcessor","Transformation","TransformTrace", "TransformCounter"),
 	.requires    = LIST ("corenova.data.configuration",
                          "corenova.data.configuration.xform",
                          "corenova.data.array",
@@ -14,11 +14,13 @@ THIS = {
                          "corenova.data.cache",
 						 "corenova.sys.loader",
                          "corenova.sys.transform",
-						 "corenova.sys.quark"),
+						 "corenova.sys.quark",
+						 "corenova.data.parser.jsonc"),
     .transforms  = LIST ("* => transform:back", /* direct ONLY match */
                          "* => transform:feeder", /* direct ONLY match */
                          "transform:back -> *",
-                         "* -> transform:counter")
+                         "* -> transform:counter",
+                         "transform:counter -> data:object::json")
 };
 
 #include <corenova/data/processor/transformation.h>
@@ -27,6 +29,7 @@ THIS = {
 #include <corenova/data/md5.h>
 #include <corenova/data/queue.h>
 #include <corenova/sys/loader.h>
+#include <corenova/data/parser/jsonc.h>
 
 /*//////// MODULE CODE //////////////////////////////////////////*/
 
@@ -171,6 +174,58 @@ static int fdctl(uint32_t *fdbitmap, int cmd)
 	return 0;
 }
 
+static char *
+TransformCounterToJson (transform_counter_t *counter) {
+	char *result = NULL;
+
+	if(!counter)
+		return NULL;
+
+	json_object *root = I(jsonc)->newObject(JSON_OBJECT);
+	if (root) {
+
+		I(jsonc)->addObject(root, JSON_STRING, "format", counter->format);
+		I(jsonc)->addObject(root, JSON_INT, "count", &counter->count);
+		I(jsonc)->addObject(root, JSON_DOUBLE, "start", &counter->start);
+		I(jsonc)->addObject(root, JSON_DOUBLE, "duration", &counter->duration);
+
+		result = I(jsonc)->toString(root);
+
+		I(jsonc)->destroyObject(root);
+
+		if(result) {
+			return result;
+		}
+
+	}
+
+	return NULL;
+}
+
+static void 
+destroyTransformCounter(transform_counter_t **counterPtr) {
+
+	if(counterPtr) {
+		transform_counter_t *counter = *counterPtr;
+		if (counter) {
+
+			if(counter->format)
+				free(counter->format);
+
+			free(counter);
+			*counterPtr = NULL;
+		}
+	}
+
+}
+
+/*//////// Transform Counter Interface Implementation //////////////////////////////////////////*/
+IMPLEMENT_INTERFACE (TransformCounter) = {
+    .toJson  = TransformCounterToJson,
+    .destroy = destroyTransformCounter
+};
+
+
 /*//////// Transformation Interface Implementation //////////////////////////////////////////*/
 
 /*
@@ -256,15 +311,39 @@ TRANSFORM_EXEC(any2transformcounter) {
 			in_counter->count = 0;
 
 			transform_object_t *obj = I(TransformObject)->new("transform:counter", out_counter_p);
-			return obj;
-
+			if (obj) {
+				obj->destroy = (XDESTROY) I(TransformCounter)->destroy;
+				return obj;
+			}
+			I(TransformCounter)->destroy(&out_counter_p);
 		}
-
 
 	} else {
 		// increment counter in instance object
 		in_counter->count++;
 	}   
+	return NULL;
+}
+
+TRANSFORM_EXEC(transformcounter2jsonObject) {
+	char *json_p = NULL;
+
+	/* Conversion of transform:counter into data:object::json */
+	if(in && in->data) {
+		DEBUGP (DDEBUG,"transformcounter2jsonObject","called with in: %p in->data: %p", in, in->data);
+
+		transform_counter_t *counter = (transform_counter_t *) in->data;
+
+		if(counter) {
+			json_p = I(TransformCounter)->toJson(counter);
+
+			if(json_p) {
+				transform_object_t *obj = I(TransformObject)->new("data:object::json", json_p);
+				return obj;
+			}
+		}
+	}
+
 	return NULL;
 }
 
@@ -274,6 +353,7 @@ TRANSFORM_NEW (newEngineTransformation) {
 	TRANSFORM ("*","transform:feeder", feederback);
 	TRANSFORM ("transform:back","*", transformback2any);
 	TRANSFORM ("*","transform:counter", any2transformcounter);
+	TRANSFORM ("transform:counter", "data:object::json", transformcounter2jsonObject);
 
 	IF_TRANSFORM(any2transformcounter) {
 
@@ -294,6 +374,7 @@ TRANSFORM_DESTROY (destroyEngineTransformation) {
 	IF_TRANSFORM(any2transformcounter) {
 		if (xform->instance) {
 			transform_counter_controller_t *counter_controller = (transform_counter_controller_t *)xform->instance;
+			if(counter_controller->format) free (counter_controller->format);
 			free (counter_controller);
 		}    
 	}    
