@@ -18,7 +18,7 @@ THIS = {
     .transforms  = LIST ("* => transform:back", /* direct ONLY match */
                          "* => transform:feeder", /* direct ONLY match */
                          "transform:back -> *",
-                         "* -> sys:counter")
+                         "* -> transform:counter")
 };
 
 #include <corenova/data/processor/transformation.h>
@@ -218,43 +218,49 @@ TRANSFORM_EXEC (transformback2any) {
     return pop;
 }
 
-TRANSFORM_EXEC(any2syscounter) {
+TRANSFORM_EXEC(any2transformcounter) {
 	struct timeval current_tv;
-	unsigned long elapsed_msec;
+	unsigned long elapsed_sec;
 
-	sys_counter_controller_t *in_counter = (sys_counter_controller_t *)xform->instance;
-	unsigned long logger_timeout_in_msec = in_counter->logger_timeout;
+	transform_counter_controller_t *in_counter = (transform_counter_controller_t *)xform->instance;
+	unsigned long timeout_in_sec = in_counter->interval;
 
 	if (in_counter->start_time.tv_sec == 0) {
 		gettimeofday(&in_counter->start_time, NULL);
 	}
 
 	gettimeofday(&current_tv, NULL);
-	DEBUGP (DDEBUG, "any2syscounter", ": millisec %lu\n", current_tv.tv_sec*1000);
+	DEBUGP (DDEBUG, "any2transformcounter", ": seconds %lu\n", current_tv.tv_sec);
 
-	elapsed_msec =  (((current_tv.tv_sec - in_counter->start_time.tv_sec) + 
-				((current_tv.tv_usec -  in_counter->start_time.tv_usec)/1000000)) * 1000);
+	elapsed_sec = ((current_tv.tv_sec - in_counter->start_time.tv_sec) + 
+			((current_tv.tv_usec -  in_counter->start_time.tv_usec)/1000000));
 
-	if (elapsed_msec > logger_timeout_in_msec) {
+	if (elapsed_sec > timeout_in_sec) {
 
-		DEBUGP(DDEBUG, "feeder2counter", "sys:counter");
-		//update the sys_object that's sent to logger_client and form a transform object with it
-		if (in && in->format) {
-			sys_counter_t *out_counter_p = (sys_counter_t *)calloc (1,sizeof (sys_counter_t));
-			if (in_counter && out_counter_p) {
-				out_counter_p->format = in->format;
-				out_counter_p->count = in_counter->count;
-				out_counter_p->start = (in_counter->start_time.tv_sec + ((in_counter->start_time.tv_usec)/1000000)) * 1000; 
-				out_counter_p->duration = elapsed_msec;
+		DEBUGP(DDEBUG, "feeder2counter", "transform:counter");
+		//update the transform object that's sent to logger service and create a transform object with it
+		transform_counter_t *out_counter_p = (transform_counter_t *)calloc (1,sizeof (transform_counter_t));
 
-				/* Initialise in_counter start_time and count to zero */
-				memset (&in_counter->start_time,0, sizeof(in_counter->start_time));
-				in_counter->count = 0;
+		if (in_counter && out_counter_p) {
 
-				transform_object_t *obj = I(TransformObject)->new("sys:counter", out_counter_p);
-				return obj;
-			}
+			out_counter_p->format = strdup(in_counter->format);
+			out_counter_p->count = in_counter->count;
+			out_counter_p->start = (in_counter->start_time.tv_sec + ((in_counter->start_time.tv_usec)/1000000)); 
+			/* Duration calculated based on elapsed time as above gives the accurate time spent since the last
+			 * transform counter call might have more time which would have exceeded the configured timeout.
+			 * Hence the duration updated and sent to logger service is accurate */
+			out_counter_p->duration = elapsed_sec;
+
+			/* Initialise in_counter start_time and count to zero */
+			memset (&in_counter->start_time, 0, sizeof(in_counter->start_time));
+			in_counter->count = 0;
+
+			transform_object_t *obj = I(TransformObject)->new("transform:counter", out_counter_p);
+			return obj;
+
 		}
+
+
 	} else {
 		// increment counter in instance object
 		in_counter->count++;
@@ -267,16 +273,17 @@ TRANSFORM_NEW (newEngineTransformation) {
 	TRANSFORM ("*","transform:back", any2transformback);
 	TRANSFORM ("*","transform:feeder", feederback);
 	TRANSFORM ("transform:back","*", transformback2any);
-	TRANSFORM ("*","sys:counter", any2syscounter);
+	TRANSFORM ("*","transform:counter", any2transformcounter);
 
-	IF_TRANSFORM(any2syscounter) {
+	IF_TRANSFORM(any2transformcounter) {
 
-		TRANSFORM_HAS_PARAM ("logger_timeout");
+		TRANSFORM_HAS_PARAM ("transform_counter_interval");
 
-		sys_counter_controller_t *counter_controller = (sys_counter_controller_t *)calloc (1,sizeof (sys_counter_controller_t));
+		transform_counter_controller_t *counter_controller = (transform_counter_controller_t *)calloc (1,sizeof (transform_counter_controller_t));
 		if (counter_controller) {
-		    /* Logger timeout in ms */	
-			counter_controller->logger_timeout =(unsigned long)(I(Parameters)->getValue(blueprint, "logger_timeout")); 
+		    /*Timeout in seconds */	
+			counter_controller->interval =(unsigned long)(I(Parameters)->getTimeValue(blueprint, "transform_counter_interval")); 
+			counter_controller->format =(char *)(I(Parameters)->getValue(blueprint, "transform_counter_name")); 
 		} 
 		TRANSFORM_WITH(counter_controller);
 	}
@@ -284,9 +291,9 @@ TRANSFORM_NEW (newEngineTransformation) {
 } TRANSFORM_NEW_FINALIZE;
 
 TRANSFORM_DESTROY (destroyEngineTransformation) {
-	IF_TRANSFORM(any2syscounter) {
+	IF_TRANSFORM(any2transformcounter) {
 		if (xform->instance) {
-			sys_counter_controller_t *counter_controller = (sys_counter_controller_t *)xform->instance;
+			transform_counter_controller_t *counter_controller = (transform_counter_controller_t *)xform->instance;
 			free (counter_controller);
 		}    
 	}    

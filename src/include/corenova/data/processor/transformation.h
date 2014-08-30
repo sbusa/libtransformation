@@ -72,20 +72,21 @@ typedef struct {
 #define DEFAULT_EXEC_QUEUE_TIMEOUT 100 /* 100ms */
 #define DEFAULT_TRANSFORMATION_LOAD_DELAY 10 /* 10ms */
 
-/* Sys counter controller object for sys:counter xform->instance blueprint and other params */
+/* Transform counter controller object for transform:counter xform->instance blueprint and other params */
 typedef struct {
+	char *format;
 	uint32_t count; /* Count of the stat event - violations, transactions etc */
 	struct timeval start_time;
-	unsigned long logger_timeout; /* Logger timeout - blueprint */
-} sys_counter_controller_t;
+	unsigned long interval; /* Timeout for summary - blueprint */
+} transform_counter_controller_t;
 
-/* Sys counter object for sending reports to logger client*/
+/* transform counter object for sending reports to logger service*/
 typedef struct {
-	char *format; /* example - transaction:message::http://deny */
+	char *format; /* example - WEB.CONTENTFILTER.COMMTOUCH.TRANSACTIONS */
 	uint32_t count; /* Count of the stat event - violations, transactions etc */
-	unsigned long start; /* tv.sec + tv.usec - time when the sys counter object got created */
-	unsigned long duration; /* Dynamic Logger timeout updated to logger client/server */
-} sys_counter_t;
+	unsigned long start; /* tv.sec + tv.usec - time when the transform counter object got created */
+	unsigned long duration; /* Dynamic Logging summary timeout updated to logger service */
+} transform_counter_t;
 
 /*
  * Extended interface beyond basic DataProcessor with additional calls
