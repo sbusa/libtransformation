@@ -358,6 +358,7 @@ TRANSFORM_NEW (newEngineTransformation) {
 	IF_TRANSFORM(any2transformcounter) {
 
 		TRANSFORM_HAS_PARAM ("transform_counter_interval");
+		TRANSFORM_HAS_PARAM ("transform_counter_name");
 
 		transform_counter_controller_t *counter_controller = (transform_counter_controller_t *)calloc (1,sizeof (transform_counter_controller_t));
 		if (counter_controller) {
