@@ -183,13 +183,16 @@ TransformCounterToJson (transform_counter_t *counter) {
 
 	json_object *root = I(jsonc)->newObject(JSON_OBJECT);
 	if (root) {
-
+		char buf[64];
 		I(jsonc)->addObject(root, JSON_STRING, "format", counter->format);
-		I(jsonc)->addObject(root, JSON_INT, "count", &counter->count);
-		I(jsonc)->addObject(root, JSON_DOUBLE, "start", &counter->start);
-		I(jsonc)->addObject(root, JSON_DOUBLE, "duration", &counter->duration);
+		sprintf(buf, "%d", counter->count);
+		I(jsonc)->addObject(root, JSON_STRING, "count", buf);
+		sprintf(buf, "%lu", counter->start);
+		I(jsonc)->addObject(root, JSON_STRING, "start", buf);
+		sprintf(buf, "%lu", counter->duration);
+		I(jsonc)->addObject(root, JSON_STRING, "duration", buf);
 
-		result = I(jsonc)->toString(root);
+		result = strdup(I(jsonc)->toString(root));
 
 		I(jsonc)->destroyObject(root);
 
@@ -277,6 +280,7 @@ TRANSFORM_EXEC(any2transformcounter) {
 	struct timeval current_tv;
 	unsigned long elapsed_sec;
 
+	in->access--;
 	transform_counter_controller_t *in_counter = (transform_counter_controller_t *)xform->instance;
 	unsigned long timeout_in_sec = in_counter->interval;
 
@@ -285,22 +289,19 @@ TRANSFORM_EXEC(any2transformcounter) {
 	}
 
 	gettimeofday(&current_tv, NULL);
-	DEBUGP (DDEBUG, "any2transformcounter", ": seconds %lu\n", current_tv.tv_sec);
+	DEBUGP (DDEBUG, "any2transformcounter", "%s: %d, %lu\n", in_counter->format, in_counter->count, current_tv.tv_sec);
 
-	elapsed_sec = ((current_tv.tv_sec - in_counter->start_time.tv_sec) + 
-			((current_tv.tv_usec -  in_counter->start_time.tv_usec)/1000000));
-
+	elapsed_sec = current_tv.tv_sec - in_counter->start_time.tv_sec;
 	if (elapsed_sec > timeout_in_sec) {
 
-		DEBUGP(DDEBUG, "feeder2counter", "transform:counter");
 		//update the transform object that's sent to logger service and create a transform object with it
 		transform_counter_t *out_counter_p = (transform_counter_t *)calloc (1,sizeof (transform_counter_t));
 
-		if (in_counter && out_counter_p) {
+		if (out_counter_p) {
 
 			out_counter_p->format = strdup(in_counter->format);
 			out_counter_p->count = in_counter->count;
-			out_counter_p->start = (in_counter->start_time.tv_sec + ((in_counter->start_time.tv_usec)/1000000)); 
+			out_counter_p->start = in_counter->start_time.tv_sec; 
 			/* Duration calculated based on elapsed time as above gives the accurate time spent since the last
 			 * transform counter call might have more time which would have exceeded the configured timeout.
 			 * Hence the duration updated and sent to logger service is accurate */
@@ -319,31 +320,36 @@ TRANSFORM_EXEC(any2transformcounter) {
 		}
 
 	} else {
-		// increment counter in instance object
 		in_counter->count++;
-	}   
-	return NULL;
+	}
+
+	return I (TransformObject)->new ("transform:counter",NULL);
 }
 
 TRANSFORM_EXEC(transformcounter2jsonObject) {
 	char *json_p = NULL;
 
 	/* Conversion of transform:counter into data:object::json */
-	if(in && in->data) {
-		DEBUGP (DDEBUG,"transformcounter2jsonObject","called with in: %p in->data: %p", in, in->data);
+	if(in) {
+		in->originator = NULL;
 
-		transform_counter_t *counter = (transform_counter_t *) in->data;
+		if(in->data) {
+		
+			DEBUGP (DDEBUG,"transformcounter2jsonObject","called with in: %p in->data: %p", in, in->data);
 
-		if(counter) {
-			json_p = I(TransformCounter)->toJson(counter);
+			transform_counter_t *counter = (transform_counter_t *) in->data;
 
-			if(json_p) {
-				transform_object_t *obj = I(TransformObject)->new("data:object::json", json_p);
-				return obj;
+			if(counter) {
+				json_p = I(TransformCounter)->toJson(counter);
+
+				if(json_p) {
+					transform_object_t *obj = I(TransformObject)->new("data:object::json", json_p);
+					return obj;
+				}
 			}
 		}
 	}
-
+	
 	return NULL;
 }
 
