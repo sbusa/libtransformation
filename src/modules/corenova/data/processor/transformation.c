@@ -4,7 +4,7 @@ THIS = {
 	.version     = "3.0",
 	.author      = "Peter K. Lee <saint@corenova.com>",
 	.description = "This module acts as a powerful transformation data processor dealing with transformation logic",
-	.implements  = LIST ("DataProcessor","TransformationProcessor","Transformation","TransformTrace"),
+	.implements  = LIST ("DataProcessor","TransformationProcessor","Transformation","TransformTrace", "TransformCounter"),
 	.requires    = LIST ("corenova.data.configuration",
                          "corenova.data.configuration.xform",
                          "corenova.data.array",
@@ -14,10 +14,13 @@ THIS = {
                          "corenova.data.cache",
 						 "corenova.sys.loader",
                          "corenova.sys.transform",
-						 "corenova.sys.quark"),
+						 "corenova.sys.quark",
+						 "corenova.data.parser.jsonc"),
     .transforms  = LIST ("* => transform:back", /* direct ONLY match */
                          "* => transform:feeder", /* direct ONLY match */
-                         "transform:back -> *")
+                         "transform:back -> *",
+                         "* -> transform:counter",
+                         "transform:counter -> data:object::json")
 };
 
 #include <corenova/data/processor/transformation.h>
@@ -26,6 +29,7 @@ THIS = {
 #include <corenova/data/md5.h>
 #include <corenova/data/queue.h>
 #include <corenova/sys/loader.h>
+#include <corenova/data/parser/jsonc.h>
 
 /*//////// MODULE CODE //////////////////////////////////////////*/
 
@@ -35,6 +39,7 @@ THIS = {
 #include <dirent.h>
 #include <errno.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #ifdef HAVE_SYS_LOADAVG_H
 # include <sys/loadavg.h>
@@ -169,6 +174,61 @@ static int fdctl(uint32_t *fdbitmap, int cmd)
 	return 0;
 }
 
+static char *
+TransformCounterToJson (transform_counter_t *counter) {
+	char *result = NULL;
+
+	if(!counter)
+		return NULL;
+
+	json_object *root = I(jsonc)->newObject(JSON_OBJECT);
+	if (root) {
+		char buf[64];
+		I(jsonc)->addObject(root, JSON_STRING, "format", counter->format);
+		sprintf(buf, "%d", counter->count);
+		I(jsonc)->addObject(root, JSON_STRING, "count", buf);
+		sprintf(buf, "%lu", counter->start);
+		I(jsonc)->addObject(root, JSON_STRING, "start", buf);
+		sprintf(buf, "%lu", counter->duration);
+		I(jsonc)->addObject(root, JSON_STRING, "duration", buf);
+
+		result = strdup(I(jsonc)->toString(root));
+
+		I(jsonc)->destroyObject(root);
+
+		if(result) {
+			return result;
+		}
+
+	}
+
+	return NULL;
+}
+
+static void 
+destroyTransformCounter(transform_counter_t **counterPtr) {
+
+	if(counterPtr) {
+		transform_counter_t *counter = *counterPtr;
+		if (counter) {
+
+			if(counter->format)
+				free(counter->format);
+
+			free(counter);
+			*counterPtr = NULL;
+		}
+	}
+
+}
+
+/*//////// Transform Counter Interface Implementation //////////////////////////////////////////*/
+IMPLEMENT_INTERFACE (TransformCounter) = {
+    .toJson  = TransformCounterToJson,
+    .destroy = destroyTransformCounter
+};
+
+
 /*//////// Transformation Interface Implementation //////////////////////////////////////////*/
 
 /*
@@ -216,16 +276,115 @@ TRANSFORM_EXEC (transformback2any) {
     return pop;
 }
 
+TRANSFORM_EXEC(any2transformcounter) {
+	struct timeval current_tv;
+	unsigned long elapsed_sec;
+
+	in->access--;
+	transform_counter_controller_t *in_counter = (transform_counter_controller_t *)xform->instance;
+	unsigned long timeout_in_sec = in_counter->interval;
+
+	if (in_counter->start_time.tv_sec == 0) {
+		gettimeofday(&in_counter->start_time, NULL);
+	}
+
+	gettimeofday(&current_tv, NULL);
+	DEBUGP (DDEBUG, "any2transformcounter", "%s: %d, %lu\n", in_counter->format, in_counter->count, current_tv.tv_sec);
+
+	elapsed_sec = current_tv.tv_sec - in_counter->start_time.tv_sec;
+	if (elapsed_sec > timeout_in_sec) {
+
+		//update the transform object that's sent to logger service and create a transform object with it
+		transform_counter_t *out_counter_p = (transform_counter_t *)calloc (1,sizeof (transform_counter_t));
+
+		if (out_counter_p) {
+
+			out_counter_p->format = strdup(in_counter->format);
+			out_counter_p->count = in_counter->count;
+			out_counter_p->start = in_counter->start_time.tv_sec; 
+			/* Duration calculated based on elapsed time as above gives the accurate time spent since the last
+			 * transform counter call might have more time which would have exceeded the configured timeout.
+			 * Hence the duration updated and sent to logger service is accurate */
+			out_counter_p->duration = elapsed_sec;
+
+			/* Initialise in_counter start_time and count to zero */
+			memset (&in_counter->start_time, 0, sizeof(in_counter->start_time));
+			in_counter->count = 0;
+
+			transform_object_t *obj = I(TransformObject)->new("transform:counter", out_counter_p);
+			if (obj) {
+				obj->destroy = (XDESTROY) I(TransformCounter)->destroy;
+				return obj;
+			}
+			I(TransformCounter)->destroy(&out_counter_p);
+		}
+
+	} else {
+		in_counter->count++;
+	}
+
+	return I (TransformObject)->new ("transform:counter",NULL);
+}
+
+TRANSFORM_EXEC(transformcounter2jsonObject) {
+	char *json_p = NULL;
+
+	/* Conversion of transform:counter into data:object::json */
+	if(in) {
+		in->originator = NULL;
+
+		if(in->data) {
+		
+			DEBUGP (DDEBUG,"transformcounter2jsonObject","called with in: %p in->data: %p", in, in->data);
+
+			transform_counter_t *counter = (transform_counter_t *) in->data;
+
+			if(counter) {
+				json_p = I(TransformCounter)->toJson(counter);
+
+				if(json_p) {
+					transform_object_t *obj = I(TransformObject)->new("data:object::json", json_p);
+					return obj;
+				}
+			}
+		}
+	}
+	
+	return NULL;
+}
+
 TRANSFORM_NEW (newEngineTransformation) {
 
-    TRANSFORM ("*","transform:back", any2transformback);
-    TRANSFORM ("*","transform:feeder", feederback);
-    TRANSFORM ("transform:back","*", transformback2any);
+	TRANSFORM ("*","transform:back", any2transformback);
+	TRANSFORM ("*","transform:feeder", feederback);
+	TRANSFORM ("transform:back","*", transformback2any);
+	TRANSFORM ("*","transform:counter", any2transformcounter);
+	TRANSFORM ("transform:counter", "data:object::json", transformcounter2jsonObject);
+
+	IF_TRANSFORM(any2transformcounter) {
+
+		TRANSFORM_HAS_PARAM ("transform_counter_interval");
+		TRANSFORM_HAS_PARAM ("transform_counter_name");
+
+		transform_counter_controller_t *counter_controller = (transform_counter_controller_t *)calloc (1,sizeof (transform_counter_controller_t));
+		if (counter_controller) {
+		    /*Timeout in seconds */	
+			counter_controller->interval =(unsigned long)(I(Parameters)->getTimeValue(blueprint, "transform_counter_interval")); 
+			counter_controller->format =(char *)(I(Parameters)->getValue(blueprint, "transform_counter_name")); 
+		} 
+		TRANSFORM_WITH(counter_controller);
+	}
 
 } TRANSFORM_NEW_FINALIZE;
 
 TRANSFORM_DESTROY (destroyEngineTransformation) {
-    
+	IF_TRANSFORM(any2transformcounter) {
+		if (xform->instance) {
+			transform_counter_controller_t *counter_controller = (transform_counter_controller_t *)xform->instance;
+			if(counter_controller->format) free (counter_controller->format);
+			free (counter_controller);
+		}    
+	}    
 } TRANSFORM_DESTROY_FINALIZE;
 
 IMPLEMENT_INTERFACE (Transformation) = {

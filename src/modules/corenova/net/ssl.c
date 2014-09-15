@@ -241,7 +241,7 @@ _newContext (ssl_mode_t mode,
 			 const char *ciphers,
                          const char *client_auth,
 			 const char *dhfile) {
-        boolean_t clientAuth = 0;
+        boolean_t clientAuth = 1;
 	ssl_context_t *ctx = NULL;
 	SSL_METHOD *method = NULL;
 
@@ -305,7 +305,6 @@ _newContext (ssl_mode_t mode,
                         /* clientAuth is from configuration. */
                         if (client_auth) {
                             clientAuth = atoi(client_auth);
-                            clientAuth = 0; /* For now zero; since no call back to verify client certificate */
                         }  
                         if (clientAuth) {
 				SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);

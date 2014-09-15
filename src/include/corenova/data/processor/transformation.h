@@ -72,6 +72,22 @@ typedef struct {
 #define DEFAULT_EXEC_QUEUE_TIMEOUT 100 /* 100ms */
 #define DEFAULT_TRANSFORMATION_LOAD_DELAY 10 /* 10ms */
 
+/* Transform counter controller object for transform:counter xform->instance blueprint and other params */
+typedef struct {
+	char *format;
+	uint32_t count; /* Count of the stat event - violations, transactions etc */
+	struct timeval start_time;
+	unsigned long interval; /* Timeout for summary - blueprint */
+} transform_counter_controller_t;
+
+/* transform counter object for sending reports to logger service*/
+typedef struct {
+	char *format; /* example - WEB.CONTENTFILTER.COMMTOUCH.TRANSACTIONS */
+	uint32_t count; /* Count of the stat event - violations, transactions etc */
+	unsigned long start; /* tv.sec + tv.usec - time when the transform counter object got created */
+	unsigned long duration; /* Dynamic Logging summary timeout updated to logger service */
+} transform_counter_t;
+
 /*
  * Extended interface beyond basic DataProcessor with additional calls
  *
@@ -80,6 +96,10 @@ typedef struct {
  */
 #include <corenova/data/processor.h>
 
+DEFINE_INTERFACE (TransformCounter) {
+	char *(*toJson)      (transform_counter_t *);
+	void                 (*destroy)  (transform_counter_t **);
+};
 DEFINE_INTERFACE (TransformationProcessor) {
 
 	transformation_processor_t *(*new)      (transformation_matrix_t *, parameters_t *);
