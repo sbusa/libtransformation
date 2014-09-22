@@ -578,9 +578,12 @@ TRANSFORM_EXEC (protocol2message) {
                             return FALSE;
                         }
 
+			goto read_header;
+			/*
                         DEBUGP (DDEBUG,"protocol2message","returning dummy object");
                         obj = I (TransformObject)->new (xform->to,NULL);
                         return obj;
+                        */
                         
                     case XFORMXFER_CONFIRMATION:
                         /*
