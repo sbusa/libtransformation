@@ -549,10 +549,16 @@ TRANSFORM_EXEC (protocol2message) {
               xformxfer_hdr_t hdr; char *pHdr = (char *)&hdr;
               
               switch (I (Transport)->poll (session->transport, TRANSPORT_POLLIN, timeout)) {
-                case TRANSPORT_TIMEOUT: {
+                case TRANSPORT_TIMEOUT:
+                	DEBUGP (DWARN,"protocol2message","transport timeout %ds, close it!", timeout);
+                	return NULL;
+                /*
+                {
                     transform_object_t *obj = I (TransformObject)->new (xform->to,NULL);
                     return obj;
                 }
+                */
+                
                 case TRANSPORT_FATAL:
                     DEBUGP (DWARN,"protocol2message","transport error detected!");
                     return NULL;
