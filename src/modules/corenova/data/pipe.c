@@ -408,7 +408,7 @@ static void
 cleanBeforeDataPipe (data_pipe_t *pipe, char *upto) {
     if (pipe) {
         if (!upto) upto = pipe->pos;
-        if (upto < pipe->dataend) {
+        if (upto > pipe->buf && upto < pipe->dataend) {
             DEBUGP (DDEBUG,"cleanBeforeDataPipe","moving data to beginning of buffer");
             memmove (pipe->buf, upto, pipe->dataend-upto);
             pipe->dataend = pipe->buf + (pipe->dataend-upto);
