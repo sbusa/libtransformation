@@ -282,6 +282,7 @@ TRANSFORM_EXEC(any2transformcounter) {
 
 	in->access--;
 	transform_counter_controller_t *in_counter = (transform_counter_controller_t *)xform->instance;
+	in_counter->count ++;
 	unsigned long timeout_in_sec = in_counter->interval;
 
 	if (in_counter->start_time.tv_sec == 0) {
@@ -289,9 +290,8 @@ TRANSFORM_EXEC(any2transformcounter) {
 	}
 
 	gettimeofday(&current_tv, NULL);
-	DEBUGP (DDEBUG, "any2transformcounter", "%s: %d, %lu\n", in_counter->format, in_counter->count, current_tv.tv_sec);
-
 	elapsed_sec = current_tv.tv_sec - in_counter->start_time.tv_sec;
+	DEBUGP (DDEBUG, "any2transformcounter", "%s: %d, %lu\n", in_counter->format, in_counter->count, elapsed_sec);
 	if (elapsed_sec > timeout_in_sec) {
 
 		//update the transform object that's sent to logger service and create a transform object with it
@@ -319,8 +319,6 @@ TRANSFORM_EXEC(any2transformcounter) {
 			I(TransformCounter)->destroy(&out_counter_p);
 		}
 
-	} else {
-		in_counter->count++;
 	}
 
 	return I (TransformObject)->new ("transform:counter",NULL);
