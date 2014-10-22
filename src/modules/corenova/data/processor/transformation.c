@@ -292,14 +292,14 @@ TRANSFORM_EXEC(any2transformcounter) {
 		struct timeval start_time;
 		
 		gettimeofday(&start_time, NULL);
-    	sleep(in_counter->interval);
+		sleep(in_counter->interval);
 
 		//update the transform object that's sent to logger service and create a transform object with it
 		transform_counter_t *out_counter_p = (transform_counter_t *)calloc (1,sizeof (transform_counter_t));
 		if (out_counter_p) {
 			out_counter_p->format = strdup(in_counter->format);
 			out_counter_p->start = start_time.tv_sec; 
-			out_counter_p->duration = 60;
+			out_counter_p->duration = in_counter->interval;
 			
 			MUTEX_LOCK(in_counter->lock);
 			out_counter_p->count = in_counter->count;
