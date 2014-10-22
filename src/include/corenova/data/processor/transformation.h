@@ -74,9 +74,9 @@ typedef struct {
 
 /* Transform counter controller object for transform:counter xform->instance blueprint and other params */
 typedef struct {
+	MUTEX_TYPE lock;
 	char *format;
 	uint32_t count; /* Count of the stat event - violations, transactions etc */
-	struct timeval start_time;
 	unsigned long interval; /* Timeout for summary - blueprint */
 } transform_counter_controller_t;
 
