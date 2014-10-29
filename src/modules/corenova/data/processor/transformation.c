@@ -279,7 +279,6 @@ TRANSFORM_EXEC (transformback2any) {
 TRANSFORM_EXEC(any2transformcounter) {
 	int watchman = 0;
 	
-	in->access--;
 	transform_counter_controller_t *in_counter = (transform_counter_controller_t *)xform->instance;
 	MUTEX_LOCK(in_counter->lock);
 	if (in_counter->count == 0) watchman = 1;
@@ -322,22 +321,17 @@ TRANSFORM_EXEC(transformcounter2jsonObject) {
 	char *json_p = NULL;
 
 	/* Conversion of transform:counter into data:object::json */
-	if(in) {
-		in->originator = NULL;
+	if(in && in->data) {
+		DEBUGP (DDEBUG,"transformcounter2jsonObject","called with in: %p in->data: %p", in, in->data);
 
-		if(in->data) {
-		
-			DEBUGP (DDEBUG,"transformcounter2jsonObject","called with in: %p in->data: %p", in, in->data);
+		transform_counter_t *counter = (transform_counter_t *) in->data;
 
-			transform_counter_t *counter = (transform_counter_t *) in->data;
+		if(counter) {
+			json_p = I(TransformCounter)->toJson(counter);
 
-			if(counter) {
-				json_p = I(TransformCounter)->toJson(counter);
-
-				if(json_p) {
-					transform_object_t *obj = I(TransformObject)->new("data:object::json", json_p);
-					return obj;
-				}
+			if(json_p) {
+				transform_object_t *obj = I(TransformObject)->new("data:object::json", json_p);
+				return obj;
 			}
 		}
 	}
