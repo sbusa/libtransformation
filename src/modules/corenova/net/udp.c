@@ -32,11 +32,10 @@ _connect (const char *host, u_int16_t port) {
 
 	if (udp->sock) {
 
-	    struct hostent *hp = gethostbyname (host);
+            in_addr_t ip = I(Resolve)->name2ip(host);
+	    if (ip != INADDR_NONE) {
 
-	    if (hp) {
-
-		udp->destHostAddr.sin_addr =* (struct in_addr *) (hp->h_addr_list[0]);
+		udp->destHostAddr.sin_addr.s_addr = ip;
 		udp->destHostAddr.sin_family = AF_INET;
 		udp->destHostAddr.sin_port = htons (port);
 		
@@ -81,11 +80,10 @@ _bconnect (const char *host, u_int16_t port) {
 
 	if (udp->sock) {
 
-	    struct hostent *hp = gethostbyname (host);
+            in_addr_t ip = I(Resolve)->name2ip(host);
+	    if (ip != INADDR_NONE) {
 
-	    if (hp) {
-
-		udp->destHostAddr.sin_addr =* (struct in_addr *) (hp->h_addr_list[0]);
+		udp->destHostAddr.sin_addr.s_addr = ip;
 		udp->destHostAddr.sin_family = AF_INET;
 		udp->destHostAddr.sin_port = htons (port);
 		
