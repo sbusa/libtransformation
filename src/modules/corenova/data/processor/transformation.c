@@ -277,39 +277,33 @@ TRANSFORM_EXEC (transformback2any) {
 }
 
 TRANSFORM_EXEC(any2transformcounter) {
-	struct timeval current_tv;
-	unsigned long elapsed_sec;
-
-	in->access--;
+	int watchman = 0;
+	
 	transform_counter_controller_t *in_counter = (transform_counter_controller_t *)xform->instance;
+	MUTEX_LOCK(in_counter->lock);
+	if (in_counter->count == 0) watchman = 1;
 	in_counter->count ++;
-	unsigned long timeout_in_sec = in_counter->interval;
-
-	if (in_counter->start_time.tv_sec == 0) {
-		gettimeofday(&in_counter->start_time, NULL);
-	}
-
-	gettimeofday(&current_tv, NULL);
-	elapsed_sec = current_tv.tv_sec - in_counter->start_time.tv_sec;
-	DEBUGP (DDEBUG, "any2transformcounter", "%s: %d, %lu\n", in_counter->format, in_counter->count, elapsed_sec);
-	if (elapsed_sec > timeout_in_sec) {
+	MUTEX_UNLOCK(in_counter->lock);
+	
+	DEBUGP (DDEBUG, "any2transformcounter", "%s: %d\n", in_counter->format, in_counter->count);
+	
+	if (watchman) {
+		struct timeval start_time;
+		
+		gettimeofday(&start_time, NULL);
+		sleep(in_counter->interval);
 
 		//update the transform object that's sent to logger service and create a transform object with it
 		transform_counter_t *out_counter_p = (transform_counter_t *)calloc (1,sizeof (transform_counter_t));
-
 		if (out_counter_p) {
-
 			out_counter_p->format = strdup(in_counter->format);
+			out_counter_p->start = start_time.tv_sec; 
+			out_counter_p->duration = in_counter->interval;
+			
+			MUTEX_LOCK(in_counter->lock);
 			out_counter_p->count = in_counter->count;
-			out_counter_p->start = in_counter->start_time.tv_sec; 
-			/* Duration calculated based on elapsed time as above gives the accurate time spent since the last
-			 * transform counter call might have more time which would have exceeded the configured timeout.
-			 * Hence the duration updated and sent to logger service is accurate */
-			out_counter_p->duration = elapsed_sec;
-
-			/* Initialise in_counter start_time and count to zero */
-			memset (&in_counter->start_time, 0, sizeof(in_counter->start_time));
 			in_counter->count = 0;
+			MUTEX_UNLOCK(in_counter->lock);
 
 			transform_object_t *obj = I(TransformObject)->new("transform:counter", out_counter_p);
 			if (obj) {
@@ -318,7 +312,6 @@ TRANSFORM_EXEC(any2transformcounter) {
 			}
 			I(TransformCounter)->destroy(&out_counter_p);
 		}
-
 	}
 
 	return I (TransformObject)->new ("transform:counter",NULL);
@@ -328,22 +321,17 @@ TRANSFORM_EXEC(transformcounter2jsonObject) {
 	char *json_p = NULL;
 
 	/* Conversion of transform:counter into data:object::json */
-	if(in) {
-		in->originator = NULL;
+	if(in && in->data) {
+		DEBUGP (DDEBUG,"transformcounter2jsonObject","called with in: %p in->data: %p", in, in->data);
 
-		if(in->data) {
-		
-			DEBUGP (DDEBUG,"transformcounter2jsonObject","called with in: %p in->data: %p", in, in->data);
+		transform_counter_t *counter = (transform_counter_t *) in->data;
 
-			transform_counter_t *counter = (transform_counter_t *) in->data;
+		if(counter) {
+			json_p = I(TransformCounter)->toJson(counter);
 
-			if(counter) {
-				json_p = I(TransformCounter)->toJson(counter);
-
-				if(json_p) {
-					transform_object_t *obj = I(TransformObject)->new("data:object::json", json_p);
-					return obj;
-				}
+			if(json_p) {
+				transform_object_t *obj = I(TransformObject)->new("data:object::json", json_p);
+				return obj;
 			}
 		}
 	}
@@ -366,7 +354,8 @@ TRANSFORM_NEW (newEngineTransformation) {
 
 		transform_counter_controller_t *counter_controller = (transform_counter_controller_t *)calloc (1,sizeof (transform_counter_controller_t));
 		if (counter_controller) {
-		    /*Timeout in seconds */	
+		    /*Timeout in seconds */
+			MUTEX_SETUP(counter_controller->lock);
 			counter_controller->interval =(unsigned long)(I(Parameters)->getTimeValue(blueprint, "transform_counter_interval")); 
 			counter_controller->format =(char *)(I(Parameters)->getValue(blueprint, "transform_counter_name")); 
 		} 
