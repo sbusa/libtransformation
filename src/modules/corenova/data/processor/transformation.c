@@ -280,7 +280,7 @@ TRANSFORM_EXEC(any2transformcounter) {
 	uint32_t cutoff;
 	MUTEX_LOCK (in->lock);
 	in->access--;
-	cutoff = in->access
+	cutoff = in->access;
 	MUTEX_UNLOCK (in->lock);
 	DEBUGP (DDEBUG, "any2transformcounter", "in->access %d", cutoff);
 	
