@@ -277,6 +277,16 @@ TRANSFORM_EXEC (transformback2any) {
 }
 
 TRANSFORM_EXEC(any2transformcounter) {
+	uint32_t cutoff;
+	MUTEX_LOCK (in->lock);
+	in->access--;
+	cutoff = in->access
+	MUTEX_UNLOCK (in->lock);
+	DEBUGP (DDEBUG, "any2transformcounter", "in->access %d", cutoff);
+	
+	transform_object_t *obj = I(TransformObject)->new("transform:counter", NULL);
+	if (obj) obj->save = cutoff;
+	
 	int watchman = 0;
 	
 	transform_counter_controller_t *in_counter = (transform_counter_controller_t *)xform->instance;
@@ -291,7 +301,7 @@ TRANSFORM_EXEC(any2transformcounter) {
 		struct timeval start_time;
 		
 		gettimeofday(&start_time, NULL);
-		sleep(in_counter->interval);
+		if (cutoff) sleep(in_counter->interval);
 
 		//update the transform object that's sent to logger service and create a transform object with it
 		transform_counter_t *out_counter_p = (transform_counter_t *)calloc (1,sizeof (transform_counter_t));
@@ -305,8 +315,8 @@ TRANSFORM_EXEC(any2transformcounter) {
 			in_counter->count = 0;
 			MUTEX_UNLOCK(in_counter->lock);
 
-			transform_object_t *obj = I(TransformObject)->new("transform:counter", out_counter_p);
 			if (obj) {
+				obj->data = out_counter_p;
 				obj->destroy = (XDESTROY) I(TransformCounter)->destroy;
 				return obj;
 			}
@@ -314,24 +324,34 @@ TRANSFORM_EXEC(any2transformcounter) {
 		}
 	}
 
-	return I (TransformObject)->new ("transform:counter",NULL);
+	return obj;
 }
 
 TRANSFORM_EXEC(transformcounter2jsonObject) {
 	char *json_p = NULL;
 
 	/* Conversion of transform:counter into data:object::json */
-	if(in && in->data) {
-		DEBUGP (DDEBUG,"transformcounter2jsonObject","called with in: %p in->data: %p", in, in->data);
+	if(in) {
+		/* cut off from previous */
+		if (in->save > 0) {
+			in->originator = NULL;
+		} else {
+			in->originator->access = 1;
+		}
+		in->save = FALSE;
+		
+		if (in->data) {
+			DEBUGP (DDEBUG,"transformcounter2jsonObject","called with in: %p in->data: %p", in, in->data);
 
-		transform_counter_t *counter = (transform_counter_t *) in->data;
+			transform_counter_t *counter = (transform_counter_t *) in->data;
 
-		if(counter) {
-			json_p = I(TransformCounter)->toJson(counter);
+			if(counter) {
+				json_p = I(TransformCounter)->toJson(counter);
 
-			if(json_p) {
-				transform_object_t *obj = I(TransformObject)->new("data:object::json", json_p);
-				return obj;
+				if(json_p) {
+					transform_object_t *obj = I(TransformObject)->new("data:object::json", json_p);
+					return obj;
+				}
 			}
 		}
 	}
