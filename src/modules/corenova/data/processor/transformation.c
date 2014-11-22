@@ -19,7 +19,8 @@ THIS = {
     .transforms  = LIST ("* => transform:back", /* direct ONLY match */
                          "* => transform:feeder", /* direct ONLY match */
                          "transform:back -> *",
-                         "* -> transform:counter",
+                         "* => transform:unlink",
+                         "transform:unlink -> *",
                          "transform:counter -> data:object::json")
 };
 
@@ -276,82 +277,39 @@ TRANSFORM_EXEC (transformback2any) {
     return pop;
 }
 
-TRANSFORM_EXEC(any2transformcounter) {
-	uint32_t cutoff;
-	MUTEX_LOCK (in->lock);
-	in->access--;
-	cutoff = in->access;
-	MUTEX_UNLOCK (in->lock);
-	DEBUGP (DDEBUG, "any2transformcounter", "in->access %d", cutoff);
-	
-	transform_object_t *obj = I(TransformObject)->new("transform:counter", NULL);
-	if (obj) obj->save = cutoff;
-	
+TRANSFORM_EXEC(transformcounter2jsonObject) {
 	int watchman = 0;
-	
 	transform_counter_controller_t *in_counter = (transform_counter_controller_t *)xform->instance;
 	MUTEX_LOCK(in_counter->lock);
 	if (in_counter->count == 0) watchman = 1;
 	in_counter->count ++;
 	MUTEX_UNLOCK(in_counter->lock);
 	
-	DEBUGP (DDEBUG, "any2transformcounter", "%s: %d\n", in_counter->format, in_counter->count);
+	DEBUGP (DDEBUG, "transformcounter2jsonObject", "%s: %d\n", in_counter->format, in_counter->count);
 	
 	if (watchman) {
 		struct timeval start_time;
 		
 		gettimeofday(&start_time, NULL);
-		if (cutoff) sleep(in_counter->interval);
-
+		sleep(in_counter->interval);
+		
 		//update the transform object that's sent to logger service and create a transform object with it
 		transform_counter_t *out_counter_p = (transform_counter_t *)calloc (1,sizeof (transform_counter_t));
 		if (out_counter_p) {
 			out_counter_p->format = strdup(in_counter->format);
-			out_counter_p->start = start_time.tv_sec; 
+			out_counter_p->start = start_time.tv_sec;
 			out_counter_p->duration = in_counter->interval;
-			
+
 			MUTEX_LOCK(in_counter->lock);
 			out_counter_p->count = in_counter->count;
 			in_counter->count = 0;
 			MUTEX_UNLOCK(in_counter->lock);
 
-			if (obj) {
-				obj->data = out_counter_p;
-				obj->destroy = (XDESTROY) I(TransformCounter)->destroy;
-				return obj;
-			}
+			char *json_p = I(TransformCounter)->toJson(out_counter_p);
 			I(TransformCounter)->destroy(&out_counter_p);
-		}
-	}
-
-	return obj;
-}
-
-TRANSFORM_EXEC(transformcounter2jsonObject) {
-	char *json_p = NULL;
-
-	/* Conversion of transform:counter into data:object::json */
-	if(in) {
-		/* cut off from previous */
-		if (in->save > 0) {
-			in->originator = NULL;
-		} else {
-			in->originator->access = 1;
-		}
-		in->save = FALSE;
-		
-		if (in->data) {
-			DEBUGP (DDEBUG,"transformcounter2jsonObject","called with in: %p in->data: %p", in, in->data);
-
-			transform_counter_t *counter = (transform_counter_t *) in->data;
-
-			if(counter) {
-				json_p = I(TransformCounter)->toJson(counter);
-
-				if(json_p) {
-					transform_object_t *obj = I(TransformObject)->new("data:object::json", json_p);
-					return obj;
-				}
+			if(json_p) {
+				transform_object_t *obj = I(TransformObject)->new("data:object::json", json_p);
+				if (obj) return obj;
 			}
 		}
 	}
@@ -359,15 +317,34 @@ TRANSFORM_EXEC(transformcounter2jsonObject) {
 	return NULL;
 }
 
+TRANSFORM_EXEC(any2transformunlink) {
+
+	void *data = NULL;
+	if ((int)xform->instance > 0) {
+		data = in->data;
+		in->data = NULL;
+	}
+	I(TransformObject)->destroy(&in);
+
+	return I(TransformObject)->new("transform:unlink", data);
+}
+
+TRANSFORM_EXEC(transformunlink2any) {
+	in->originator = NULL;
+
+	return I(TransformObject)->new(xform->to, in->data);
+}
+
 TRANSFORM_NEW (newEngineTransformation) {
 
 	TRANSFORM ("*","transform:back", any2transformback);
 	TRANSFORM ("*","transform:feeder", feederback);
 	TRANSFORM ("transform:back","*", transformback2any);
-	TRANSFORM ("*","transform:counter", any2transformcounter);
+	TRANSFORM ("*", "transform:unlink", any2transformunlink);
+	TRANSFORM ("transform:unlink", "*", transformunlink2any);
 	TRANSFORM ("transform:counter", "data:object::json", transformcounter2jsonObject);
 
-	IF_TRANSFORM(any2transformcounter) {
+	IF_TRANSFORM(transformcounter2jsonObject) {
 
 		TRANSFORM_HAS_PARAM ("transform_counter_interval");
 		TRANSFORM_HAS_PARAM ("transform_counter_name");
@@ -381,11 +358,17 @@ TRANSFORM_NEW (newEngineTransformation) {
 		} 
 		TRANSFORM_WITH(counter_controller);
 	}
+	
+	IF_TRANSFORM(any2transformunlink) {
+		int withdata = I(Parameters)->getTimeValue(blueprint, "withdata");
+		/* transform with previous data or not */
+		TRANSFORM_WITH((void *) withdata);
+	}
 
 } TRANSFORM_NEW_FINALIZE;
 
 TRANSFORM_DESTROY (destroyEngineTransformation) {
-	IF_TRANSFORM(any2transformcounter) {
+	IF_TRANSFORM(transformcounter2jsonObject) {
 		if (xform->instance) {
 			transform_counter_controller_t *counter_controller = (transform_counter_controller_t *)xform->instance;
 			if(counter_controller->format) free (counter_controller->format);
