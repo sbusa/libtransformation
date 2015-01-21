@@ -602,8 +602,8 @@ syncDataPipeStream (data_pipe_stream_t *stream) {
         fds[0].fd = stream->in2out->fds[0].fd;
         fds[1].fd = stream->out2in->fds[0].fd;
 
-        fds[0].events = POLLIN;
-        fds[1].events = POLLIN;
+        fds[0].events = POLLIN | POLLOUT;
+        fds[1].events = POLLIN | POLLOUT;
 
         if (I (DataPipe)->hasData (stream->in2out)) goto flush_c2s;
         if (I (DataPipe)->hasData (stream->out2in)) goto flush_s2c;
