@@ -601,16 +601,13 @@ syncDataPipeStream (data_pipe_stream_t *stream) {
         struct pollfd fds[2];
         fds[0].fd = stream->in2out->fds[0].fd;
         fds[1].fd = stream->out2in->fds[0].fd;
-
-        fds[0].events = POLLIN | POLLOUT;
-        fds[1].events = POLLIN | POLLOUT;
-
-        if (I (DataPipe)->hasData (stream->in2out)) goto flush_c2s;
-        if (I (DataPipe)->hasData (stream->out2in)) goto flush_s2c;
         
         while (1) {
             gettimeofday (&tv1,NULL);
             //DEBUGP (DDEBUG,"syncDataPipeStream","poll checking for %d and %d (%d ms timeout)",fds[0].fd,fds[1].fd,timeout);
+            fds[0].events = I (DataPipe)->hasData (stream->out2in) ? (POLLIN | POLLOUT) : POLLIN;
+            fds[1].events = I (DataPipe)->hasData (stream->in2out) ? (POLLIN | POLLOUT) : POLLIN;
+            	
             switch (poll (fds, 2, timeout)) {
               case -1:
                   if (errno == EINTR && !SystemExit) {
@@ -657,7 +654,7 @@ syncDataPipeStream (data_pipe_stream_t *stream) {
                 goto flush_s2c;
             }
 
-            if ((fds[0].revents & POLLIN) || hasDataInPipe(stream->in2out)) {
+            if ((fds[0].revents & POLLIN) || (hasDataInPipe(stream->in2out) && (fds[1].revents & POLLOUT))) {
                 if (stream->initiator == PIPESTREAM_IN2OUT && syncOut2In) {
                     DEBUGP (DDEBUG,"syncDataPipeStream","completed sync operation!");
                     return TRUE;
@@ -680,7 +677,7 @@ syncDataPipeStream (data_pipe_stream_t *stream) {
                 }
             }
 
-            if ((fds[1].revents & POLLIN) || hasDataInPipe(stream->out2in)) {
+            if ((fds[1].revents & POLLIN) || (hasDataInPipe(stream->out2in) && (fds[0].revents & POLLOUT))) {
                 if (stream->initiator == PIPESTREAM_OUT2IN && syncIn2Out) {
                     DEBUGP (DDEBUG,"syncDataPipeStream","completed sync operation!");
                     return TRUE;
