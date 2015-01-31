@@ -354,9 +354,6 @@ AC_CHECK_HEADERS(gumbo.h,
   --------------------------------------------------------------------- 
   ]))
 
-CPPFLAGS="${CPPFLAGS} $GUMBO_CFLAGS"
-LDFLAGS="${LDFLAGS} ${LIBGUMBO}"
-
 AC_SUBST(LIBGUMBO)
 
 AM_CONDITIONAL(BUILD_GUMBO, test x$build_gumbo = xtrue)
