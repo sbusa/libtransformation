@@ -29,7 +29,8 @@ datamoduleinclude_HEADERS =						\
 	corenova/data/streams.h                     \
 	corenova/data/stree.h						\
 	corenova/data/hmap.h						\
-	corenova/data/string.h
+	corenova/data/string.h						\
+	corenova/data/pbc.h
 
 gumbomoduleincludedir = $(includedir)/corenova/data/parser
 gumbomoduleinclude_HEADERS =					\
@@ -73,8 +74,13 @@ netmoduleinclude_HEADERS =						\
 	corenova/net/activemq.h						\
 	corenova/net/udp.h							\
 	corenova/net/route.h						\
-	corenova/net/pcap.h
+	corenova/net/pcap.h						\
+	corenova/net/rpc.h
 
+rpcmoduleincludedir = $(includedir)/corenova/data/parser
+rpcmoduleinclude_HEADERS =                            \
+	corenova/data/parser/corenova.pb-c.h
+ 
 sysmoduleincludedir = $(includedir)/corenova/sys
 sysmoduleinclude_HEADERS =						\
 	corenova/sys/debug.h						\

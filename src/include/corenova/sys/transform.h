@@ -2,6 +2,12 @@
 #define __transform_H__
 
 #include <corenova/interface.h>
+#include <corenova/data/list.h>
+#include <corenova/data/array.h>
+#include <corenova/data/parameters.h>
+
+#include <netinet/in.h>
+#include <netdb.h>
 
 /*----------------------------------------------------------------*/
 
@@ -60,7 +66,31 @@ DEFINE_INTERFACE (TransformToken) {
 
 };
 
+typedef struct __transformation {
+
+    module_t     *module;
+    char         *from;
+    char         *to;
+    parameters_t *blueprint;
+    void         *instance;
+    int           type;
+    void         *rpcops;
+    transform_object_t *(*exec) (struct __transformation *, transform_object_t *in);
+
+} transformation_t;
+
+DEFINE_INTERFACE (Transformation) {
+
+    transformation_t   *(*new)     (const char *from, const char *to, parameters_t *blueprint);
+    transform_object_t *(*execute) (transformation_t *, transform_object_t *in);
+    void                (*free)    (transform_object_t *obj);
+    void                (*destroy) (transformation_t **);
+
+};
+
+
 /*----------------------------------------------------------------*/
+#include <corenova/net/rpc.h>
 
 #define TRANSFORM_EXEC(FUNC)                                            \
     static transform_object_t * FUNC (transformation_t * xform, transform_object_t *in)
@@ -76,6 +106,22 @@ DEFINE_INTERFACE (TransformToken) {
         free (xform);                                                   \
         return NULL;                                                    \
     }
+
+#define TRANSFORM_RPC_INIT(OPS)	\
+	/* resolve the to as a DNS domain */ \
+	struct addrinfo hints, *res; \
+	memset(&hints, 0, sizeof(hints)); \
+	hints.ai_family = AF_INET; \
+	if (getaddrinfo (to, NULL, &hints, &res) == 0) { \
+		struct sockaddr_in *sa = (struct sockaddr_in *) res->ai_addr; \
+		DEBUGP (DERR,"Transformation",  \
+			"initialize the instance for (%s -> %s) to RPC server %08x!", from, to, sa->sin_addr.s_addr);    \
+		freeaddrinfo (res); \
+		xform->exec = I (RpcServices)->request;   \
+	} \
+	xform->rpcops = OPS; \
+	I (RpcServices)->registry(xform);
+
 
 #define TRANSFORM_HAS_PARAM(PARAM)                                      \
     if (!I (Parameters)->getValue (blueprint,PARAM)) {                  \
@@ -117,33 +163,7 @@ DEFINE_INTERFACE (TransformToken) {
 #define TRANSFORM_FREE(FUNC)                    \
     static void FUNC (transform_object_t *obj)  \
 
-#include <corenova/data/parameters.h>
-
-typedef struct __transformation {
-
-    module_t     *module;
-    char         *from;
-    char         *to;
-    parameters_t *blueprint;
-    void         *instance;
-    int           type;
-    transform_object_t *(*exec) (struct __transformation *, transform_object_t *in);
-    
-} transformation_t;
-
-DEFINE_INTERFACE (Transformation) {
-    
-    transformation_t   *(*new)     (const char *from, const char *to, parameters_t *blueprint);
-    transform_object_t *(*execute) (transformation_t *, transform_object_t *in);
-    void                (*free)    (transform_object_t *obj);
-    void                (*destroy) (transformation_t **);
-    
-};
-
 /*----------------------------------------------------------------*/
-
-#include <corenova/data/list.h>
-#include <corenova/data/array.h>
 
 typedef struct {
 

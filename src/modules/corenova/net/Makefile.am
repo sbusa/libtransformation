@@ -24,6 +24,10 @@ pkglib_LTLIBRARIES += tcp.la
 tcp_la_SOURCES      = tcp.c
 tcp_la_CFLAGS       = -DMODULE=corenova_net_tcp
 
+pkglib_LTLIBRARIES += rpc.la
+rpc_la_SOURCES      = rpc.c
+rpc_la_CFLAGS       = -DMODULE=corenova_net_rpc
+
 pkglib_LTLIBRARIES += udp.la
 udp_la_SOURCES      = udp.c
 udp_la_CFLAGS       = -DMODULE=corenova_net_udp

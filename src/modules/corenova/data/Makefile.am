@@ -118,3 +118,7 @@ pkglib_LTLIBRARIES    += parameters.la
 parameters_la_SOURCES  = parameters.c
 parameters_la_CFLAGS   = -DMODULE=corenova_data_parameters
 
+pkglib_LTLIBRARIES    += pbc.la
+pbc_la_SOURCES  = pbc.c
+pbc_la_CFLAGS   = -DMODULE=corenova_data_pbc
+pbc_la_LIBADD   = -lprotobuf-c
