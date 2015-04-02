@@ -689,6 +689,12 @@ _useRecords(ssl_t *ssl, boolean_t flag) {
 
 }
 
+static int sslPending(ssl_t *ssl) {
+	if (ssl && ssl->conn) return SSL_pending(ssl->conn);
+
+	return 0;
+}
+
 IMPLEMENT_INTERFACE (SSLConnector) = {
 	.context = _newContext,
 	.connect = _connect,
@@ -696,7 +702,7 @@ IMPLEMENT_INTERFACE (SSLConnector) = {
 	.accept  = sslAccept,
 	.read    = sslRead,
 	.write   = sslWrite,
-
+	.pending = sslPending,
 	.getPeerCname   = _getPeerCname,
 
 	.destroy        = destroySSL,

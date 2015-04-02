@@ -109,76 +109,85 @@ setMarker (data_pipe_t *pipe, char *pos) {
 
 static int
 pollDataPipe (data_pipe_t *pipe, pipe_poll_type_t type, int timeout) {
-    if (pipe) {
-        struct timeval tv1, tv2;
+	if (pipe) {
+		int res, state;
+		struct timeval tv1, tv2;
         
-        /* reset to PIPE_POLLINOUT (reverse logic...)*/
-        pipe->fds[0].events = POLLIN;
-        pipe->fds[1].events = POLLOUT;
+		/* reset to PIPE_POLLINOUT (reverse logic...)*/
+		pipe->fds[0].events = POLLIN;
+		pipe->fds[1].events = POLLOUT;
         
-        switch (type) {
-          case PIPE_POLLIN:    pipe->fds[1].events = 0; break;
-          case PIPE_POLLOUT:   pipe->fds[0].events = 0; break;
-          case PIPE_POLLINOUT: break;
-        }
-        
-        while (TRUE) {
-            gettimeofday (&tv1,NULL);
-            switch (poll (pipe->fds, 2, timeout)) {
-              case -1:
-                  if (errno == EINTR && !SystemExit) {
-                      if (timeout > 0) {
-                          gettimeofday (&tv2,NULL);
-                          timeout -= ((tv2.tv_sec - tv1.tv_sec) * 1000) + ((tv2.tv_usec - tv1.tv_usec) / 1000);
-                          if (timeout > 0) continue;
-                      } else continue;   
-                  }
-              case 0:
-                  return PIPE_TIMEOUT;
-            }
-            //DEBUGP (DDEBUG,"pollDataPipe","poll result for %d:%d and %d:%d",pipe->fds[0].fd,pipe->fds[0].revents,pipe->fds[1].fd,pipe->fds[1].revents);
-            /*
-             * first, handle error cases related to INPUT & OUTPUT pipes
-             */
-            if (pipe->fds[1].revents & POLLERR || pipe->fds[1].revents & POLLHUP || pipe->fds[1].revents & POLLNVAL) {
-                DEBUGP (DWARN,"pollDataPipe","output pipe has issue! (this is fatal)");
-                /*
-                 * something's wrong with the output pipe!
-                 *
-                 * otherwise, if we've written everything we have, then no problem.
-                 * otherwise, receiving endpoint should not prematurely close connection!
-                 */
-                return PIPE_FATAL;
-                //if (pipe->pos == pipe->dataend) return PIPE_BROKEN;
-                //else return PIPE_FATAL;
-            }
-    
-            if (pipe->fds[0].revents & POLLERR || pipe->fds[0].revents & POLLHUP || pipe->fds[0].revents & POLLNVAL) {
-                if (!(pipe->fds[0].revents & POLLIN)) {
-                    DEBUGP (DWARN,"pollDataPipe","input pipe has issue (nothing to read?)!");
-                } else {
-                    DEBUGP (DWARN,"pollDataPipe","input pipe has issue (has something to read)!");
-                }
-                /*
-                 * something's wrong with the input pipe!
-                 *
-                 * we're going to assume end of pipe, but first check if there's stuff to read or write.
-                 */
-                return PIPE_BROKEN;
+		switch (type) {
+			case PIPE_POLLIN:    pipe->fds[1].events = 0; break;
+			case PIPE_POLLOUT:   pipe->fds[0].events = 0; break;
+			case PIPE_POLLINOUT: break;
+		}
 
-                /*
-                if (pipe->pos == pipe->dataend) return PIPE_BROKEN;
-                else return PIPE_FATAL;
-        
-                if (!(pipe->fds[0].events & POLLIN)) {
-                    if (pipe->pos == pipe->dataend) return PIPE_BROKEN;
-                    //state = PIPE_WRITEDATA; // explicitly jump to PIPE_WRITEDATA state! (since there WILL NOT be any more input)
-                }
-                */
-            }
-            return PIPE_CONTINUE;
-        }
-    }
+		while (TRUE) {
+			state = PIPE_COMPLETE;
+			gettimeofday (&tv1,NULL);
+			res = poll (pipe->fds, 2, timeout);
+			if (res == 0) {
+				state = PIPE_TIMEOUT;
+				break;
+			} else if (res > 0) {
+				//DEBUGP (DDEBUG,"pollDataPipe","poll result for %d:%d and %d:%d",pipe->fds[0].fd,pipe->fds[0].revents,pipe->fds[1].fd,pipe->fds[1].revents);
+				/*
+				 * first, handle error cases related to INPUT & OUTPUT pipes
+				 */
+				if (pipe->fds[1].revents & POLLERR || pipe->fds[1].revents & POLLHUP || pipe->fds[1].revents & POLLNVAL) {
+					DEBUGP (DWARN,"pollDataPipe","output pipe has issue! (this is fatal)");
+					/*
+					 * something's wrong with the output pipe!
+					 *
+					 * otherwise, if we've written everything we have, then no problem.
+					 * otherwise, receiving endpoint should not prematurely close connection!
+					 */
+					state = PIPE_FATAL;
+					break;
+				}
+        	
+				if (pipe->fds[0].revents & POLLERR || pipe->fds[0].revents & POLLHUP || pipe->fds[0].revents & POLLNVAL) {
+					if (!(pipe->fds[0].revents & POLLIN)) {
+						DEBUGP (DWARN,"pollDataPipe","input pipe has issue (nothing to read?)!");
+					} else {
+						DEBUGP (DWARN,"pollDataPipe","input pipe has issue (has something to read)!");
+					}
+					/*
+					 * something's wrong with the input pipe!
+					 *
+					 * we're going to assume end of pipe, but first check if there's stuff to read or write.
+					 */
+					state = PIPE_BROKEN;
+					break;
+				}
+				
+				state = PIPE_CONTINUE;
+				break;
+			} else {
+				if (errno == EINTR && !SystemExit) {
+					if (timeout > 0) {
+						gettimeofday (&tv2,NULL);
+						timeout -= ((tv2.tv_sec - tv1.tv_sec) * 1000) + ((tv2.tv_usec - tv1.tv_usec) / 1000);
+						if (timeout > 0) continue;
+					} else continue;
+				}
+			}
+		}
+		
+		/* special check for SSL */
+		if((state != PIPE_FATAL || state != PIPE_BROKEN) && pipe->ssl[0] && pipe->fds[0].events == POLLIN) {
+			int count = I(SSLConnector)->pending(pipe->ssl[0]);
+			DEBUGP (DDEBUG, "pollDataPipe", "SSL POLL %x\n", count);
+			if (count) {
+				pipe->fds[0].revents = POLLIN;
+				state = PIPE_CONTINUE;
+			}
+		}
+		
+		return state;
+	}
+    
     return PIPE_FATAL;
 }
 
