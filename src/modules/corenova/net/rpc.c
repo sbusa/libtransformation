@@ -6,7 +6,7 @@ THIS = {
 	.description = "a remote procedure call module",
 	.requires    = LIST ("corenova.data.array",
 			"corenova.net.tcp",
-                        "corenova.sys.transform",
+			"corenova.sys.transform",
 			"corenova.data.pbc"),
 	.implements  = LIST ("RpcServices")
 };
@@ -30,7 +30,7 @@ static inline transformation_t *lookup(char *from, char *to)
 	transformation_t *xform = NULL;
 	int i = 0;
 
-	fprintf(stderr, "lookup from %s, to %s\n", from, to);	
+	DEBUGP (DINFO, "RPC lookup", "lookup from %s, to %s\n", from, to);	
 	while ((xform = I (Array)->get(rpcs, i ++)))
 	{
 		if (strcmp(xform->from, from) == 0 && strcmp(xform->to, to) == 0)
@@ -64,25 +64,31 @@ static transform_object_t * request (transformation_t *xform, transform_object_t
 							if (res->code == RPC_SUCCESS) {
 								return I(PbcOps)->res_unpack(res, xform->rpcops);
 							} else {
-								fprintf(stderr, "response with err code %d\n", res->code);
+								DEBUGP (DINFO, "RPC request", "response with err code %d\n", res->code);
 							}
 						} else {
-							fprintf(stderr, "rpc_res_unpack failed\n");
+							DEBUGP (DERROR, "RPC request", "rpc_res_unpack failed\n");
 						}
 					} else {
-						fprintf(stderr, "don't get response from %s, RPC_TIMEOUT\n", xform->to);
+						DEBUGP (DERROR, "RPC request", "don't get response from %s, RPC_TIMEOUT\n", xform->to);
 					}
 				} else {
-					fprintf(stderr, "cant write to %s\n", xform->to);
+					DEBUGP (DERROR, "RPC request", "cant write to %s\n", xform->to);
 				}
 			} else {
-				fprintf(stderr, "can't pack\n");
+				DEBUGP (DERROR, "RPC request", "can't pack\n");
 			}
 		} else {
-			fprintf(stderr, "can't connect to host %s\n", xform->to);
+			DEBUGP (DERROR, "RPC request", "can't connect to host %s\n", xform->to);
 		}
+		
+		/* sometimes need to return something */
+		Rpc__Response err;
+		memset(&err, 0, sizeof(Rpc__Response));
+		err.format = xform->to;
+		return I(PbcOps)->res_unpack(&err, xform->rpcops);
 	} else {
-		fprintf(stderr, "no rpcops for %s -> %s\n", xform->from, xform->to);
+		DEBUGP (DERROR, "RPC request", "no rpcops for %s -> %s\n", xform->from, xform->to);
  	}
  	
  	return NULL;
@@ -122,7 +128,7 @@ static int reply(char *in, size_t size, char **out)
 			code = RPC_SERVICE_NOT_SUPPORTED;
 		}
 	} else {
-		fprintf(stderr, "rpc_req_unpack failed \n");
+		DEBUGP (DINFO, "RPC reply", "rpc_req_unpack failed \n");
 	}
 
 	/* pack code and send data */
