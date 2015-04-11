@@ -44,11 +44,13 @@ static inline transformation_t *lookup(char *from, char *to)
 static transform_object_t * request (transformation_t *xform, transform_object_t *in)
 {
 	if (xform->rpcops) {
+		transform_object_t *result = NULL;
 		tcp_t *tcp = I(TcpConnector)->connect(xform->to, RPC_PORT);
 		if (tcp) {
 			int size;
 			unsigned char *pack;
-
+			
+			
 			size = I(PbcOps)->req_pack(xform->from, xform->to, in->data, xform->rpcops, &pack);
 			if (size) {
 				size = I(TcpConnector)->write (tcp, (char *)pack, size);
@@ -62,10 +64,12 @@ static transform_object_t * request (transformation_t *xform, transform_object_t
 						if (res) {
 							/* read the code */
 							if (res->code == RPC_SUCCESS) {
-								return I(PbcOps)->res_unpack(res, xform->rpcops);
+								result = I(PbcOps)->res_unpack(res, xform->rpcops);
 							} else {
 								DEBUGP (DINFO, "RPC request", "response with err code %d\n", res->code);
 							}
+							
+							I(PbcOps)->res_free(res);
 						} else {
 							DEBUGP (DERROR, "RPC request", "rpc_res_unpack failed\n");
 						}
@@ -75,18 +79,27 @@ static transform_object_t * request (transformation_t *xform, transform_object_t
 				} else {
 					DEBUGP (DERROR, "RPC request", "cant write to %s\n", xform->to);
 				}
+				
+				free(pack);
 			} else {
 				DEBUGP (DERROR, "RPC request", "can't pack\n");
 			}
+			
+			I(TcpConnector)->destroy(&tcp);
 		} else {
 			DEBUGP (DERROR, "RPC request", "can't connect to host %s\n", xform->to);
 		}
 		
-		/* sometimes need to return something */
-		Rpc__Response err;
-		memset(&err, 0, sizeof(Rpc__Response));
-		err.format = xform->to;
-		return I(PbcOps)->res_unpack(&err, xform->rpcops);
+		if (result) {
+			return result;
+		} else {
+			/* sometimes need to return something */
+			Rpc__Response err;
+			memset(&err, 0, sizeof(Rpc__Response));
+	
+			err.format = xform->to;
+			return I(PbcOps)->res_unpack(&err, xform->rpcops);
+		}
 	} else {
 		DEBUGP (DERROR, "RPC request", "no rpcops for %s -> %s\n", xform->from, xform->to);
  	}
@@ -127,6 +140,8 @@ static int reply(char *in, size_t size, char **out)
 		} else {
 			code = RPC_SERVICE_NOT_SUPPORTED;
 		}
+		
+		I(PbcOps)->req_free(req);
 	} else {
 		DEBUGP (DINFO, "RPC reply", "rpc_req_unpack failed \n");
 	}

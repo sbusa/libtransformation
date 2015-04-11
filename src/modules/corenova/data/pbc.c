@@ -54,6 +54,11 @@ void *req_unpack(Rpc__Request *req, void *ops)
 	return NULL;
 }
 
+void req_free(Rpc__Request *req)
+{
+	rpc__request__free_unpacked(req, NULL);
+}
+
 int res_pack(char *format, char *data, void *ops, unsigned char **out) 
 {
 	size_t size;
@@ -97,6 +102,11 @@ void *res_unpack(Rpc__Response *res, void *ops)
 	return NULL;
 }
 
+void res_free(Rpc__Response *res)
+{
+	rpc__response__free_unpacked(res, NULL);
+}
+
 /* Base 128 Varints */
 char err_code[] = {0xd0, 0x00};
 int code_pack(unsigned char **pack, size_t size, int code)
@@ -132,9 +142,11 @@ IMPLEMENT_INTERFACE (PbcOps) = {
 	.req_pack = req_pack,
 	.rpc_req_unpack = rpc_req_unpack,
 	.req_unpack = req_unpack,
+	.req_free = req_free,
 	.res_pack = res_pack,
 	.rpc_res_unpack = rpc_res_unpack,
 	.res_unpack = res_unpack,
+	.res_free = res_free,
 	.code_pack = code_pack,
 	.code_unpack = code_unpack
 };

@@ -8,9 +8,11 @@ DEFINE_INTERFACE (PbcOps) {
 	int (*req_pack) (char *from, char *to, char *data, void *ops, unsigned char **out);
 	Rpc__Request *(*rpc_req_unpack)(size_t size, char *in);
 	void *(*req_unpack) (Rpc__Request *req, void *ops);
+	void (*req_free) (Rpc__Request *req);
 	int (*res_pack) (char *format, char *data, void *ops, unsigned char **out);
 	Rpc__Response *(*rpc_res_unpack)(size_t size, char *in);
 	void *(*res_unpack) (Rpc__Response *res, void *ops);
+	void (*res_free) (Rpc__Response *res);
 	int (*code_pack) (unsigned char **pack, size_t size, int code);
 	int (*code_unpack) (unsigned char *pack, size_t size);
 };
