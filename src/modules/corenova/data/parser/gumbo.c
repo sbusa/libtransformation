@@ -124,12 +124,16 @@ matchTag(gumboParser_t *gumboParser, GumboNode *node, GumboTag tagName, char *at
 			if (regex) {
 				if (I (String)->equalWild(attr->value, value))
 				foundMatch = TRUE;
-			} else { /* should merge this branch to the regex */
-                        	/* "g"/"g _o" */
+			} else {
                         	int len = strlen(value);
-                        	if (!strncmp(attr->value, value, len) && (*(attr->value + len) == ' ' || strlen(attr->value) == len)) {
-                            		foundMatch = TRUE;
-                        	}
+				char *match;
+				
+				/* "g", "g ", " g", " g " */
+				if ((match = strstr(attr->value, value))) {
+					if ((match == attr->value || *(match - 1) == ' ') &&
+						(*(match + len)  == '\0' ||  *(match + len) == ' '))
+					foundMatch = TRUE;
+				}
 			}
                     } else {
                         foundMatch = TRUE;
