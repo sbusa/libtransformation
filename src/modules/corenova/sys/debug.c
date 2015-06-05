@@ -41,7 +41,7 @@ static void debugLogDir (const char *dir) {
     }
 }
 
-static void redirectfd (int fd, const char *to) {
+static void _redirectfd (int fd, const char *to) {
     if (to) {
         FILE *redirect = fopoen (to,"a");
         if (redirect && dup2 (fileno (redirect), fd) >= 0)
@@ -58,12 +58,17 @@ static void setupDebug (const char *id, const char *logdir, const int level) {
 
     if (logdir) {
         char *out = I (String)->new ("%s/%s.out",logdir,id?id:"debug");
+        char *err = I (String)->new ("%s/%s.err",logdir,id?id:"debug");
         if (out) {
-            redirectfd (stdout,out);
+            _redirectfd (stdout,out);
+            free (out);
+        }
+        if (err) {
+            _redirectfd (stderr,out);
+            free (err);
         }
         DEBUGP(DINFO, "debug", "setting log output to %s for %s instance", logdir, id?id:"default");
     }
-    
 }
 
 IMPLEMENT_INTERFACE (Debug) = {

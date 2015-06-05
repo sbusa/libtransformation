@@ -38,18 +38,19 @@ static char *id = NULL;
 static char *engine = NULL;
 static char *logdir = NULL;
 static char *debug_level = NULL;
+static char verbose = 
 
 int main(int argc, char **argv) {
 
     /* process command line arguments */
 	parameters_t *params = I (OptionParser)->parse(&this,argc,argv);
 	if (params && params->count) {
-        id          = I (Parameters)->getValue (params,"id");
-		engine      = I (Parameters)->getValue (params,"engine");
-		transform   = I (Parameters)->getValue (params,"transform");
-        logdir      = I (Parameters)->getValue (params,"logdir");
-        verbose     = I (Parameters)->getNumValue (params,"verbose");
-        NovaCache   = I (Parameters)->getBooleanValue (params,"novacache");
+        id           = I (Parameters)->getValue (params,"id");
+		engine       = I (Parameters)->getValue (params,"engine");
+		transform    = I (Parameters)->getValue (params,"transform");
+        logdir       = I (Parameters)->getValue (params,"logdir");
+        char verbose = I (Parameters)->getNumValue (params,"verbose");
+        NovaCache    = I (Parameters)->getBooleanValue (params,"novacache");
 
         /* process the global settings */
         I (Debug)->setup (id,logdir,verbose);
