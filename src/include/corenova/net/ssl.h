@@ -2,6 +2,7 @@
 #define __ssl_H__
 
 #include <corenova/interface.h>
+#include <corenova/data/cache.h>
 
 #include <corenova/net/tcp.h>
 
@@ -87,8 +88,8 @@ DEFINE_INTERFACE (SSLConnector) {
 
 	uint32_t (*read)    (ssl_t *, char **buf, uint32_t size);
 	uint32_t (*write)   (ssl_t *, char  *buf, uint32_t size);
+	int     (*pending) (ssl_t *);
 	void     (*setTimeout) (ssl_t *, int secs);	
-	
 	char      *(*getPeerCname) (ssl_t *);
 	void       (*useRecords) (ssl_t *, boolean_t flag);
 };

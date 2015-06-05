@@ -6,7 +6,7 @@ THIS = {
     .author = "Suresh Kumar/Hash Yuan",
     .description = "This module provides a set of gumbo html5 parser specific operations.",
     .implements = LIST("Gumbo"),
-    .requires = LIST("corenova.data.array")
+    .requires = LIST("corenova.data.array", "corenova.data.string")
 };
 
 
@@ -119,13 +119,22 @@ matchTag(gumboParser_t *gumboParser, GumboNode *node, GumboTag tagName, char *at
                 if ((attr = gumbo_get_attribute(&node->v.element.attributes, attribute))) {
 
                     if (value) { /* specified value to match! */
+			char *regex = strchr(value, '*');
 
-                        /* "g"/"g _o" */
-                        int len = strlen(value);
-                        if (!strncmp(attr->value, value, len) && (*(attr->value + len) == ' ' || strlen(attr->value) == len)) {
-                            foundMatch = TRUE;
-                        }
-                        
+			if (regex) {
+				if (I (String)->equalWild(attr->value, value))
+				foundMatch = TRUE;
+			} else {
+                        	int len = strlen(value);
+				char *match;
+				
+				/* "g", "g ", " g", " g " */
+				if ((match = strstr(attr->value, value))) {
+					if ((match == attr->value || *(match - 1) == ' ') &&
+						(*(match + len)  == '\0' ||  *(match + len) == ' '))
+					foundMatch = TRUE;
+				}
+			}
                     } else {
                         foundMatch = TRUE;
                     }
@@ -151,7 +160,6 @@ matchTag(gumboParser_t *gumboParser, GumboNode *node, GumboTag tagName, char *at
     	    	
 					DEBUGP(DDEBUG, "matchTag", "position: %p, length: %d", tag->start, tag->length);
                 }
-                return;
             }
         }
 

@@ -142,6 +142,7 @@ typedef struct
   unsigned long     mem_used;     /* Memory currently in use (bytes).   */
   unsigned short    cache_hits;   /* Incremented on succesful find.     */
   unsigned short    cache_trys;   /* Incremented on cache lookup.       */
+  void * cookie;
   } ubi_cacheRoot;
 
 typedef ubi_cacheRoot *ubi_cacheRootPtr;
@@ -187,7 +188,8 @@ ubi_cacheRootPtr ubi_cacheInit( ubi_cacheRootPtr  CachePtr,
                                 ubi_trCompFunc    CompFunc,
                                 ubi_trKillNodeRtn FreeFunc,
                                 unsigned long     MaxEntries,
-                                unsigned long     MaxMemory );
+                                unsigned long     MaxMemory ,
+				void *cookie);
   /* ------------------------------------------------------------------------ **
    * Initialize a cache header structure.
    *

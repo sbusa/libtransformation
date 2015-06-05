@@ -1,4 +1,4 @@
-AC_INIT([corenova], [1.4.1],
+AC_INIT([corenova], [1.4.4],
 	[http://bugs.corenova.com/])
 AC_CONFIG_SRCDIR(configure.ac)
 
@@ -353,9 +353,6 @@ AC_CHECK_HEADERS(gumbo.h,
   Gumbo html parser headers not found.
   --------------------------------------------------------------------- 
   ]))
-
-CPPFLAGS="${CPPFLAGS} $GUMBO_CFLAGS"
-LDFLAGS="${LDFLAGS} ${LIBGUMBO}"
 
 AC_SUBST(LIBGUMBO)
 

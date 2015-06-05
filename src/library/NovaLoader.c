@@ -320,7 +320,7 @@ static inline int interface_entry_cmp (ubi_trItemPtr key, ubi_trNodePtr data) {
     return strncmp (A?A:"",B?B:"",INTERFACE_NAME_MAXLEN);
 }
 
-static inline void interface_entry_del (ubi_trNodePtr data) {
+static inline void interface_entry_del (ubi_trNodePtr data, void *cookie) {
     interface_entry_t *entry = (interface_entry_t *) data;
     if (entry) {
         free (entry);
@@ -508,7 +508,7 @@ nova_load(const char *name) {
                         MUTEX_SETUP(m->cache_lock);
                         m->cache = (void *) ubi_cacheInit (root,interface_entry_cmp,interface_entry_del,
                                                            INTERFACE_CACHE_MAX_ENTRIES,
-                                                           INTERFACE_CACHE_MAX_MEMORY);
+                                                           INTERFACE_CACHE_MAX_MEMORY, NULL);
                         if (m->cache) {
                             nova_interface_cache (root, m);
                         }

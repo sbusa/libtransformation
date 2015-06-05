@@ -118,15 +118,21 @@ TRANSFORM_NEW (newActiveMQTransformation) {
     TRANSFORM ("data:object::binary", "corenova:net:activemq", binary2mq);
 
     IF_TRANSFORM (binary2mq) { 
-    	TRANSFORM_HAS_PARAM ("broker_uri");
+    	TRANSFORM_HAS_PARAM ("broker_host");
+	TRANSFORM_HAS_PARAM ("broker_port");
     	TRANSFORM_HAS_PARAM ("queue_name");
-   		TRANSFORM_HAS_PARAM ("delivery_mode_persistent"); //true or false
+	TRANSFORM_HAS_PARAM ("delivery_mode_persistent"); //true or false
     	
+	char *server = I(Parameters)->getValue(blueprint, "broker_host");
+	int port = I(Parameters)->getByteValue(blueprint, "broker_port");
+	char uri[256];
+	
+	snprintf(uri, 256, "failover:(tcp://%s:%d)", server, port);
+
     	TRANSFORM_WITH (
-    		I (ActiveMQ)->newProducer (	I(Parameters)->getValue(blueprint,"broker_uri"),
-			 							I(Parameters)->getValue(blueprint,"queue_name"),
-			 							I(Parameters)->getValue(blueprint,"delivery_mode_persistent") )
-			 							//"false" )	 // Just for test
+    		I (ActiveMQ)->newProducer (uri, I(Parameters)->getValue(blueprint,"queue_name"),
+			 			I(Parameters)->getValue(blueprint,"delivery_mode_persistent") )
+			 			//"false" )	 // Just for test
 		);
     }
 

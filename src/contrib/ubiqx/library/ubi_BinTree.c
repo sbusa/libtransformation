@@ -1034,7 +1034,8 @@ unsigned long ubi_btTraverse( ubi_btRootPtr   RootPtr,
   } /* ubi_btTraverse */
 
 unsigned long ubi_btKillTree( ubi_btRootPtr     RootPtr,
-                              ubi_btKillNodeRtn FreeNode )
+                              ubi_btKillNodeRtn FreeNode,
+			      void *cookie )
   /* ------------------------------------------------------------------------ **
    * Delete an entire tree (non-recursively) and reinitialize the ubi_btRoot
    * structure.  Return a count of the number of nodes deleted.
@@ -1073,7 +1074,7 @@ unsigned long ubi_btKillTree( ubi_btRootPtr     RootPtr,
     p = q->Link[ubi_trPARENT];
     if( NULL != p )
       p->Link[ ((p->Link[ubi_trLEFT] == q)?ubi_trLEFT:ubi_trRIGHT) ] = NULL;
-    (*FreeNode)((void *)q);
+    (*FreeNode)((void *)q, cookie);
     count++;
     }
 

@@ -23,6 +23,7 @@ DEFINE_INTERFACE (Array)
 {
 	array_t  *(*new)     (void);
 	void      (*destroy) (array_t **, array_del_func del);
+    void      (*delete)  (array_t *, int index);
     int       (*count)   (array_t *);
     int       (*add)     (array_t *, void *item);
     void      (*remove)  (array_t *, array_del_func del);
